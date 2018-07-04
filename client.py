@@ -1,30 +1,3 @@
-# MrWorkServer
-A simple clustered python 3.5+ asyncio based work server that uses the MrQ interface.
-
-# Example
-
-```python
-
-import asyncio
-import mrworkserver
-
-def callback(msgs):
-  print("Callback:")
-  for m in msgs:
-    print(m)
-
-ws = mrworkserver.WorkServer()
-ws.cb = callback
-ws.run()
-
-
-```
-
-# Example client
-
-```python
-
-# pip install asyncmrq
 
 import asyncio
 from mrq.client import Client
@@ -46,7 +19,3 @@ if __name__ == '__main__':
   loop = asyncio.get_event_loop()
   loop.run_until_complete(run(loop))
   loop.close()
-
-```
-
-

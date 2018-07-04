@@ -1,0 +1,11 @@
+setup.py
+./src/mrworkserver/internals/dec.c
+./src/mrworkserver/internals/module.c
+./src/mrworkserver/internals/protocol.c
+src/mrworkserver/__init__.py
+src/mrworkserver/workserver.py
+src/mrworkserver.egg-info/PKG-INFO
+src/mrworkserver.egg-info/SOURCES.txt
+src/mrworkserver.egg-info/dependency_links.txt
+src/mrworkserver.egg-info/requires.txt
+src/mrworkserver.egg-info/top_level.txt
