@@ -8,7 +8,7 @@ A simple clustered python 3.5+ asyncio based work server that uses the MrQ inter
 import asyncio
 import mrworkserver
 
-def callback(msgs):
+async def callback(msgs):
   print("Callback:")
   for m in msgs:
     print(m)
@@ -31,7 +31,7 @@ from mrq.client import Client
 
 async def run(loop):
   c = Client()
-  await c.connect(io_loop=loop,servers=[("127.0.0.1",7100)],)
+  await c.connect(io_loop=loop,servers=[("127.0.0.1",7100)])
 
   bstr = "[1,2,3,4,5,6,7,8,9,10]".encode("utf-8")
   l = len(bstr)

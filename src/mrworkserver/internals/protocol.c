@@ -2,7 +2,6 @@
 #include "module.h"
 #include "dec.h"
 
-
 #include "Python.h"
 #include <errno.h>
 #include <string.h>
@@ -36,9 +35,10 @@ PyObject * Protocol_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
   self = (Protocol*)type->tp_alloc(type, 0);
   if(!self) goto finally;
 
-  self->app = NULL;
   self->transport = NULL;
+  self->app   = NULL;
   self->write = NULL;
+  self->task  = NULL;
 
   finally:
   return (PyObject*)self;
@@ -47,7 +47,7 @@ PyObject * Protocol_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 void Protocol_dealloc(Protocol* self)
 {
   Py_XDECREF(self->app);
-  Py_XDECREF(self->func);
+  Py_XDECREF(self->async_func);
   Py_XDECREF(self->transport);
   Py_XDECREF(self->write);
   Py_TYPE(self)->tp_free((PyObject*)self);
@@ -66,6 +66,13 @@ int Protocol_init(Protocol* self, PyObject *args, PyObject *kw)
 
   if ( list == NULL ) list = PyList_New(0);
 
+  if(!(self->task_done   = PyObject_GetAttrString((PyObject*)self, "task_done"  ))) return -1;
+
+  PyObject* loop = NULL;
+  if(!(loop = PyObject_GetAttrString(self->app, "_loop"  ))) return -1;
+  if(!(self->create_task = PyObject_GetAttrString(loop, "create_task"))) return -1;
+
+
   return 0;
 }
 
@@ -76,7 +83,7 @@ PyObject* Protocol_connection_made(Protocol* self, PyObject* transport)
   self->transport = transport; Py_INCREF(self->transport);
 
   if(!(self->write = PyObject_GetAttrString(transport, "write"))) return NULL;
-  if(!(self->func  = PyObject_GetAttrString(self->app, "callback"))) return NULL;
+  if(!(self->async_func  = PyObject_GetAttrString(self->app, "cb"))) return NULL;
   if(!(connections = PyObject_GetAttrString(self->app, "_connections"))) return NULL;
 
   if(PySet_Add(connections, (PyObject*)self) == -1) { Py_XDECREF(connections); return NULL; }
@@ -194,8 +201,48 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
     }
   }
 
-  if ( PyList_GET_SIZE(list) > 2 ) {
-    PyObject* tmp = PyObject_CallFunctionObjArgs(self->func, list, NULL);
+  // If we have enough items and aren't waiting on a callback 
+  if ( PyList_GET_SIZE(list) > 2 && self->task == NULL ) {
+    return protocol_process_messages(self);
+  }
+
+  Py_RETURN_NONE;
+}
+
+PyObject* Protocol_get_transport(Protocol* self)
+{
+  Py_INCREF(self->transport);
+  return self->transport;
+}
+
+PyObject* protocol_process_messages(Protocol* self) {
+
+  PyObject* ret = NULL;
+  PyObject* tmp = NULL;
+  PyObject* add_done_callback = NULL;
+
+  // Calling an async function returns a coroutine so create a task for it and a done callback
+  if(!(ret        = PyObject_CallFunctionObjArgs(self->async_func,  list, NULL))) return NULL; 
+  if(!(self->task = PyObject_CallFunctionObjArgs(self->create_task, ret,  NULL))) return NULL; 
+  Py_XDECREF(ret);
+
+  if(!(add_done_callback = PyObject_GetAttrString(self->task, "add_done_callback"))) goto error;
+  if(!(tmp = PyObject_CallFunctionObjArgs(add_done_callback, self->task_done, NULL))) goto error;
+  Py_DECREF(tmp);
+  Py_DECREF(add_done_callback);
+
+  Py_RETURN_NONE;
+
+error:
+  Py_XDECREF(self->task); self->task = NULL;
+  Py_XDECREF(ret);
+  Py_XDECREF(add_done_callback);
+  Py_XDECREF(tmp);
+  return NULL;
+    
+/*
+  TODO Allow a sync callback as well?
+    PyObject* tmp = PyObject_CallFunctionObjArgs(self->async_func, list, NULL);
     if ( !tmp ) {
       //TODO add test
       DBG printf("Callback failed with an exception\n");
@@ -213,17 +260,20 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
       Py_XDECREF(type);
       Py_XDECREF(value);
     }
-    
+
     Py_XDECREF(list);
     list = PyList_New(0);
-  }
+*/
+}
+
+PyObject* Protocol_task_done(Protocol* self, PyObject* task)
+{
+  Py_XDECREF(list);
+  list = PyList_New(0);
+
+  Py_XDECREF(self->task); self->task = NULL;
 
   Py_RETURN_NONE;
 }
 
-PyObject* Protocol_get_transport(Protocol* self)
-{
-  Py_INCREF(self->transport);
-  return self->transport;
-}
 

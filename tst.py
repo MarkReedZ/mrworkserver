@@ -2,7 +2,7 @@
 import asyncio
 import mrworkserver
 
-def callback(msgs):
+async def callback(msgs):
   print("Callback:")
   for m in msgs:
     print(m)

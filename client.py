@@ -4,7 +4,7 @@ from mrq.client import Client
 
 async def run(loop):
   c = Client()
-  await c.connect(io_loop=loop,servers=[("127.0.0.1",7100)],)
+  await c.connect(io_loop=loop,servers=[("127.0.0.1",7100)])
 
   bstr = "[1,2,3,4,5,6,7,8,9,10]".encode("utf-8")
   l = len(bstr)

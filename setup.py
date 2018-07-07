@@ -1,4 +1,5 @@
 
+import codecs
 from setuptools import setup, Extension, find_packages
 
 m1 = Extension(
@@ -15,11 +16,17 @@ m1 = Extension(
      define_macros = [('DEBUG_PRINT',1)]
 )
 
+with codecs.open('README.md', encoding='utf-8') as f:
+    README = f.read()
+
+
 setup(
   name="mrworkserver", 
   version="0.2",
   license='MIT',
   description='A python work server written in C',
+  long_description = README,
+  long_description_content_type='text/markdown',
   ext_modules = [m1],
   package_dir={'':'src'},
   packages=find_packages('src'),# + ['prof'],

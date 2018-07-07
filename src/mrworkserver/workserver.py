@@ -9,6 +9,8 @@ class WorkServer():
     self._connections = set()
     self._protocol_factory = protocol_factory or Protocol
     self.cb = None
+    self.workq = asyncio.Queue(loop=self.loop)
+
 
   @property
   def loop(self):
@@ -16,10 +18,12 @@ class WorkServer():
       self._loop = asyncio.new_event_loop()
     return self._loop
 
-  def callback(self, lst):
-    self.cb(lst) 
-
   def run(self, host='0.0.0.0', port=7100, *, cores=None):
+
+    if not asyncio.iscoroutinefunction(self.cb):
+      print("WorkServer.cb must be an async function")
+      return;
+
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
