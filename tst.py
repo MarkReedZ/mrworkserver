@@ -1,5 +1,5 @@
 
-import asyncio
+import asyncio, ssl
 import mrworkserver
 
 async def callback(msgs):
@@ -9,5 +9,9 @@ async def callback(msgs):
 
 ws = mrworkserver.WorkServer()
 ws.cb = callback
-ws.run()
+
+#sc = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+#sc.load_cert_chain(certfile='cert/server.crt', keyfile='cert/server.key')
+
+ws.run() #ssl=sc)
 

@@ -18,12 +18,11 @@ class WorkServer():
       self._loop = asyncio.new_event_loop()
     return self._loop
 
-  def run(self, host='0.0.0.0', port=7100, *, cores=None):
+  def run(self, host='0.0.0.0', port=7100, *, cores=None, ssl=None):
 
     if not asyncio.iscoroutinefunction(self.cb):
       print("WorkServer.cb must be an async function")
       return;
-
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -32,7 +31,7 @@ class WorkServer():
 
     loop = self.loop
     asyncio.set_event_loop(loop)
-    server_coro = loop.create_server( lambda: self._protocol_factory(self), sock=sock)
+    server_coro = loop.create_server( lambda: self._protocol_factory(self), sock=sock, ssl=ssl)
     server = loop.run_until_complete(server_coro)
 
     try:

@@ -21,3 +21,8 @@ if __name__ == '__main__':
   loop.run_until_complete(run(loop))
   loop.close()
 
+# openssl req -new -newkey rsa:2048 -days 365 -nodes -x509 -keyout server.key -out server.crt
+  #sc = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+  #sc.load_verify_locations('server.crt')
+  #await c.connect(io_loop=loop,servers=[("127.0.0.1",7100)],ssl=sc)
+

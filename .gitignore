@@ -1,6 +1,7 @@
 dist
 build
 __pycache__
+*egg*
 
 # Prerequisites
 *.d

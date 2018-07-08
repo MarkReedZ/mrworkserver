@@ -133,7 +133,7 @@ PyObject* Protocol_connection_lost(Protocol* self, PyObject* args)
 PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
 {
   //self->num_data_received++;
-  DBG printf("protocol data recvd %ld\n", Py_SIZE(py_data));
+  printf("protocol data recvd %ld\n", Py_SIZE(py_data));
 
   char* p;
   Py_ssize_t psz;
