@@ -10,11 +10,6 @@ typedef struct {
   PyObject* app;
   bool closed;
 
-  PyObject* async_func;
-  PyObject* task_done;
-  PyObject* create_task;
-  PyObject* task;
-
   PyObject* transport;
   PyObject* write;
   double start_time;
@@ -36,6 +31,5 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* data);
 PyObject* Protocol_eof_received(Protocol* self);
 
 PyObject* Protocol_get_transport(Protocol* self);
-PyObject* Protocol_task_done(Protocol* self, PyObject* task);
-
-PyObject* protocol_process_messages(Protocol* self);
+//PyObject* Protocol_task_done(Protocol* self, PyObject* task);
+//PyObject* protocol_process_messages(Protocol* self);

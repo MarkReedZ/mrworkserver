@@ -9,8 +9,6 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
-static PyObject *list = NULL;
-
 static void print_buffer( char* b, int len ) {
   for ( int z = 0; z < len; z++ ) {
     printf( "%02x ",(int)b[z]);
@@ -23,8 +21,10 @@ void printErr(void) {
   PyObject *type, *value, *traceback;
   PyErr_Fetch(&type, &value, &traceback);
   printf("Unhandled exception :\n");
-  PyObject_Print( type, stdout, 0 ); printf("\n");
-  PyObject_Print( value, stdout, 0 ); printf("\n");
+  if ( value ) {
+    PyObject_Print( type, stdout, 0 ); printf("\n");
+    PyObject_Print( value, stdout, 0 ); printf("\n");
+  }
 }
 
 PyObject * Protocol_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
@@ -38,7 +38,6 @@ PyObject * Protocol_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
   self->transport = NULL;
   self->app   = NULL;
   self->write = NULL;
-  self->task  = NULL;
 
   finally:
   return (PyObject*)self;
@@ -47,7 +46,6 @@ PyObject * Protocol_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 void Protocol_dealloc(Protocol* self)
 {
   Py_XDECREF(self->app);
-  Py_XDECREF(self->async_func);
   Py_XDECREF(self->transport);
   Py_XDECREF(self->write);
   Py_TYPE(self)->tp_free((PyObject*)self);
@@ -55,7 +53,7 @@ void Protocol_dealloc(Protocol* self)
 
 int Protocol_init(Protocol* self, PyObject *args, PyObject *kw)
 {
-  DBG printf("protocol init\n");
+  DBG printf("protocol  init\n");
   self->closed = true;
 
   if(!PyArg_ParseTuple(args, "O", &self->app)) return -1;
@@ -64,14 +62,8 @@ int Protocol_init(Protocol* self, PyObject *args, PyObject *kw)
   self->bufp = NULL;
   self->buf = malloc(2*1024*1024);
 
-  if ( list == NULL ) list = PyList_New(0);
-
-  if(!(self->task_done   = PyObject_GetAttrString((PyObject*)self, "task_done"  ))) return -1;
-
-  PyObject* loop = NULL;
-  if(!(loop = PyObject_GetAttrString(self->app, "_loop"  ))) return -1;
-  if(!(self->create_task = PyObject_GetAttrString(loop, "create_task"))) return -1;
-
+  //PyObject* loop = NULL;
+  //if(!(loop = PyObject_GetAttrString(self->app, "_loop"  ))) return -1;
 
   return 0;
 }
@@ -83,7 +75,6 @@ PyObject* Protocol_connection_made(Protocol* self, PyObject* transport)
   self->transport = transport; Py_INCREF(self->transport);
 
   if(!(self->write = PyObject_GetAttrString(transport, "write"))) return NULL;
-  if(!(self->async_func  = PyObject_GetAttrString(self->app, "cb"))) return NULL;
   if(!(connections = PyObject_GetAttrString(self->app, "_connections"))) return NULL;
 
   if(PySet_Add(connections, (PyObject*)self) == -1) { Py_XDECREF(connections); return NULL; }
@@ -112,6 +103,7 @@ void* Protocol_close(Protocol* self)
 
 PyObject* Protocol_eof_received(Protocol* self) {
   DBG printf("eof received\n");
+  WorkServer_process_messages((WorkServer*)self->app, 1);
   Py_RETURN_NONE; // Closes the connection and conn lost will be called next
 }
 PyObject* Protocol_connection_lost(Protocol* self, PyObject* args)
@@ -133,7 +125,7 @@ PyObject* Protocol_connection_lost(Protocol* self, PyObject* args)
 PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
 {
   //self->num_data_received++;
-  printf("protocol data recvd %ld\n", Py_SIZE(py_data));
+  DBG printf("protocol data recvd %ld\n", Py_SIZE(py_data));
 
   char* p;
   Py_ssize_t psz;
@@ -189,7 +181,7 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
       o = (PyObject*)jsonParse(p, &endptr, len);
 #endif
       //PyObject_Print( o, stdout, 0 );
-      PyList_Append( list, o );
+      PyList_Append( ((WorkServer*)self->app)->list, o );
       p = endptr;
 
     }
@@ -201,11 +193,22 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
     }
   }
 
-  // If we have enough items and aren't waiting on a callback 
-  if ( PyList_GET_SIZE(list) > 2 && self->task == NULL ) {
-    return protocol_process_messages(self);
-  }
+  return WorkServer_process_messages((WorkServer*)self->app, 0);
 
+/*
+  // If we have enough items or enough time has passed and aren't waiting on a callback 
+  if ( self->gather_seconds ) {
+    unsigned long cur_time = time(NULL);
+    if ( ((cur_time-self->last_time)>self->gather_seconds) && self->task == NULL ) {
+      self->last_time = cur_time;
+      return protocol_process_messages(self);
+    }
+  } else {
+    if ( PyList_GET_SIZE(self->app->list) > 2 && self->task == NULL ) {
+      return protocol_process_messages(self);
+    }
+  }
+*/
   Py_RETURN_NONE;
 }
 
@@ -213,67 +216,6 @@ PyObject* Protocol_get_transport(Protocol* self)
 {
   Py_INCREF(self->transport);
   return self->transport;
-}
-
-PyObject* protocol_process_messages(Protocol* self) {
-
-  PyObject* ret = NULL;
-  PyObject* tmp = NULL;
-  PyObject* add_done_callback = NULL;
-
-  // Calling an async function returns a coroutine so create a task for it and a done callback
-  if(!(ret        = PyObject_CallFunctionObjArgs(self->async_func,  list, NULL))) return NULL; 
-  if(!(self->task = PyObject_CallFunctionObjArgs(self->create_task, ret,  NULL))) return NULL; 
-  Py_XDECREF(ret);
-
-  if(!(add_done_callback = PyObject_GetAttrString(self->task, "add_done_callback"))) goto error;
-  if(!(tmp = PyObject_CallFunctionObjArgs(add_done_callback, self->task_done, NULL))) goto error;
-  Py_DECREF(tmp);
-  Py_DECREF(add_done_callback);
-
-  Py_RETURN_NONE;
-
-error:
-  Py_XDECREF(self->task); self->task = NULL;
-  Py_XDECREF(ret);
-  Py_XDECREF(add_done_callback);
-  Py_XDECREF(tmp);
-  return NULL;
-    
-/*
-  TODO Allow a sync callback as well?
-    PyObject* tmp = PyObject_CallFunctionObjArgs(self->async_func, list, NULL);
-    if ( !tmp ) {
-      //TODO add test
-      DBG printf("Callback failed with an exception\n");
-      PyObject *type, *value, *traceback;
-      PyErr_Fetch(&type, &value, &traceback);
-      PyErr_NormalizeException(&type, &value, &traceback);
-      //if (value) {
-      printf("Unhandled exception :\n");
-      PyObject_Print( type, stdout, 0 ); printf("\n");
-      if ( value ) { PyObject_Print( value, stdout, 0 ); printf("\n"); }
-      PyErr_Clear();
-      //PyObject_Print( traceback, stdout, 0 ); printf("\n");
-    
-      Py_XDECREF(traceback);
-      Py_XDECREF(type);
-      Py_XDECREF(value);
-    }
-
-    Py_XDECREF(list);
-    list = PyList_New(0);
-*/
-}
-
-PyObject* Protocol_task_done(Protocol* self, PyObject* task)
-{
-  Py_XDECREF(list);
-  list = PyList_New(0);
-
-  Py_XDECREF(self->task); self->task = NULL;
-
-  Py_RETURN_NONE;
 }
 
 

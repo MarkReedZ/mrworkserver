@@ -1,15 +1,17 @@
 
 import socket, os, asyncio
 
-from mrworkserver import Protocol
+from mrworkserver import Protocol, CWorkServer
 
-class WorkServer():
-  def __init__(self, *, protocol_factory=None):
-    self._loop = None
+class WorkServer(CWorkServer):
+  def __init__(self, *, protocol_factory=None, seconds_to_gather=0, callback=None):
+    self._loop = asyncio.new_event_loop()
     self._connections = set()
     self._protocol_factory = protocol_factory or Protocol
-    self.cb = None
-    self.workq = asyncio.Queue(loop=self.loop)
+    self._seconds_to_gather = seconds_to_gather
+    self.cb = callback
+    #self.workq = asyncio.Queue(loop=self.loop)
+    super(WorkServer,self).__init__(callback, seconds_to_gather);
 
 
   @property
@@ -17,6 +19,13 @@ class WorkServer():
     if not self._loop:
       self._loop = asyncio.new_event_loop()
     return self._loop
+
+  #def dcConnect(servers):
+    #for s in servers:
+      #srv = Server( s[0], s[1] )
+      #srv.r, srv.w = await asyncio.open_connection( s[0], s[1], loop=self._loop, limit=DEFAULT_BUFFER_SIZE, ssl=ssl)
+      #self.servers.append(srv)
+
 
   def run(self, host='0.0.0.0', port=7100, *, cores=None, ssl=None):
 

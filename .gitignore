@@ -2,6 +2,7 @@ dist
 build
 __pycache__
 *egg*
+*.swp
 
 # Prerequisites
 *.d
