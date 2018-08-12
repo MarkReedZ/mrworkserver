@@ -40,6 +40,7 @@ PyObject *WorkServer_cinit(WorkServer* self) {
 
 PyObject* WorkServer_process_messages(WorkServer* self, int force) {
 
+  //printf( "process %d\n",PyList_GET_SIZE(self->list));
 
   if ( !force ) {
     // If we have enough items or enough time has passed and aren't waiting on a callback 
@@ -48,7 +49,9 @@ PyObject* WorkServer_process_messages(WorkServer* self, int force) {
       if ( ((cur_time-self->last_time)>self->gather_seconds) && self->task == NULL ) {
         self->last_time = cur_time;
       } else {
-        Py_RETURN_NONE;
+        if ( PyList_GET_SIZE(self->list) < 1000 ) {
+          Py_RETURN_NONE;
+        }
       }
     } else {
       if ( PyList_GET_SIZE(self->list) > 2 && self->task == NULL ) {
@@ -67,7 +70,7 @@ PyObject* WorkServer_process_messages(WorkServer* self, int force) {
   PyObject* add_done_callback = NULL;
 
   // Calling an async function returns a coroutine so create a task for it and a done callback
-  if(!(tmp        = PyObject_CallFunctionObjArgs(self->async_func,  self->list2, NULL))) return NULL;
+  if(!(tmp        = PyObject_CallFunctionObjArgs(self->async_func,  self, self->list2, NULL))) return NULL;
   if(!(self->task = PyObject_CallFunctionObjArgs(self->create_task, tmp,  NULL))) goto error;
   Py_DECREF(tmp);
 

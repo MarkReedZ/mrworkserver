@@ -1,3 +1,5 @@
+
+
 #include "protocol.h"
 #include "module.h"
 #include "dec.h"
@@ -135,24 +137,25 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
     printf("WARNING py bytes as string failed\n");
     return NULL; //TODO set error
   }
+  //if ( psz > 32 ) print_buffer( p, 32 );
 
   int data_left = psz;
   if ( self->bufp ) {
+    //printf(" bufp!\n");
+    //print_buffer( self->buf, self->bufp-self->buf);
     memcpy(self->bufp, p, psz);
-    data_left = self->bufp - self->buf;
-    p = self->bufp;
+    data_left = data_left + self->bufp - self->buf;
+    p = self->buf;
     self->bufp = NULL;
   }
 
-  int zz = 0; 
   while ( data_left > 0 ) {
-    zz += 1;
-    if ( zz > 100 ) break;
 
     if ( data_left < 4 ) {
-      //DBG printf("Received partial data %d more bytes need %d\n",data_left, conn->needs);
+      //printf("Received partial data need 4\n");
       if ( self->bufp == NULL ) self->bufp = self->buf;
       memcpy(self->bufp, p, data_left);
+      self->bufp += data_left;
       Py_RETURN_NONE;
     }
 
@@ -160,35 +163,57 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
     int topic = (unsigned char)p[2];
     int slot  = (unsigned char)p[3];
 
+    //printf(" cmd %d\n", cmd );
+    if ( cmd != 1 ) exit(0);
+
+    //if ( data_left > 32 ) print_buffer( p, 32 );
+    //else print_buffer( p, data_left );
+
     if ( cmd == 1 ) {
 
       if ( data_left < 8 ) {
-        //DBG printf("Received partial data %d more bytes need %d\n",data_left, conn->needs);
+        //printf("Received partial data need 8\n");
         if ( self->bufp == NULL ) self->bufp = self->buf;
         memcpy(self->bufp, p, data_left);
+        self->bufp += data_left;
         Py_RETURN_NONE;
       }
       int len   = *((int*)(p)+1);
+      //printf("cmd dl %d len %d\n",data_left,len);
+
+      if ( data_left < len ) {
+        //printf("Received partial data dl %d need %d\n",data_left,len);
+        if ( self->bufp == NULL ) self->bufp = self->buf;
+        memcpy(self->bufp, p, data_left);
+        self->bufp += data_left;
+        //print_buffer( self->buf, data_left );
+        //printf(" set buf to %.*s\n", self->bufp-self->buf,self->buf);
+        Py_RETURN_NONE;
+      }
+
       p += 8;
       data_left -= len + 8;
 
-      //memcpy( s->write, p, len );
-      char *endptr;
-      PyObject *o;
+      if ( len > 0 ) {
+
+        //memcpy( s->write, p, len );
+        char *endptr;
+        PyObject *o;
 #ifdef __AVX2__
-      o = (PyObject*)jParse(p, &endptr, len);
+        o = (PyObject*)jParse(p, &endptr, len);
 #else
-      o = (PyObject*)jsonParse(p, &endptr, len);
+        o = (PyObject*)jsonParse(p, &endptr, len);
 #endif
-      //PyObject_Print( o, stdout, 0 );
-      PyList_Append( ((WorkServer*)self->app)->list, o );
-      p = endptr;
+        //PyObject_Print( o, stdout, 0 );
+        PyList_Append( ((WorkServer*)self->app)->list, o );
+        p = endptr;
+      }
 
     }
     else {
       printf("ERROR unrecognized cmd %d\n",cmd);
       //TODO drop conn
-      print_buffer(p, data_left);
+      //print_buffer(p, data_left);
       Py_RETURN_NONE;
     }
   }

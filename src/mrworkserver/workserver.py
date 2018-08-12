@@ -10,6 +10,8 @@ class WorkServer(CWorkServer):
     self._protocol_factory = protocol_factory or Protocol
     self._seconds_to_gather = seconds_to_gather
     self.cb = callback
+    self.on_start = None
+    self.on_stop  = None
     #self.workq = asyncio.Queue(loop=self.loop)
     super(WorkServer,self).__init__(callback, seconds_to_gather);
 
@@ -40,6 +42,9 @@ class WorkServer(CWorkServer):
 
     loop = self.loop
     asyncio.set_event_loop(loop)
+    if self.on_start:
+      loop.run_until_complete( self.on_start(self) )
+
     server_coro = loop.create_server( lambda: self._protocol_factory(self), sock=sock, ssl=ssl)
     server = loop.run_until_complete(server_coro)
 
@@ -50,6 +55,8 @@ class WorkServer(CWorkServer):
     finally:
       server.close()
       loop = asyncio.get_event_loop()
+      if self.on_stop:
+        loop.run_until_complete( self.on_stop(self) )
       loop.run_until_complete(server.wait_closed())
       loop.close()
 
