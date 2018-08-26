@@ -1,5 +1,4 @@
 
-
 #include "protocol.h"
 #include "module.h"
 #include "dec.h"
@@ -164,12 +163,17 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
     int slot  = (unsigned char)p[3];
 
     //printf(" cmd %d\n", cmd );
-    if ( cmd != 1 ) exit(0);
+    //if ( cmd != 1 ) exit(0);
 
     //if ( data_left > 32 ) print_buffer( p, 32 );
     //else print_buffer( p, data_left );
 
-    if ( cmd == 1 ) {
+    if ( cmd == 10 ) {
+      WorkServer_process_messages((WorkServer*)self->app, 1);
+      p += 4;
+      data_left -= 4;
+    }
+    else if ( cmd == 1 ) {
 
       if ( data_left < 8 ) {
         //printf("Received partial data need 8\n");

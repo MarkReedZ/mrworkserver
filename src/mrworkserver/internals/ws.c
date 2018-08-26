@@ -49,7 +49,7 @@ PyObject* WorkServer_process_messages(WorkServer* self, int force) {
       if ( ((cur_time-self->last_time)>self->gather_seconds) && self->task == NULL ) {
         self->last_time = cur_time;
       } else {
-        if ( PyList_GET_SIZE(self->list) < 1000 ) {
+        if ( PyList_GET_SIZE(self->list) < 5 ) { //TODO
           Py_RETURN_NONE;
         }
       }
