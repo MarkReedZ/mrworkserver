@@ -200,6 +200,7 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
 
       if ( len > 0 ) {
 
+        //printf(" msg >%.*s<\n", len, p );
         //memcpy( s->write, p, len );
         char *endptr;
         PyObject *o;
@@ -208,8 +209,14 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
 #else
         o = (PyObject*)jsonParse(p, &endptr, len);
 #endif
-        //PyObject_Print( o, stdout, 0 );
-        PyList_Append( ((WorkServer*)self->app)->list, o );
+        //PyObject_Print( o, stdout, 0 ); 
+        //printf("\n");
+        // TODO what to do if bad json? Add error callback?
+        if ( o != NULL ) {
+          PyList_Append( ((WorkServer*)self->app)->list, o );
+        } else {
+          if ( PyErr_Occurred() ) PyErr_Print(); // Prints exception and clears the error
+        }
         p = endptr;
       }
 

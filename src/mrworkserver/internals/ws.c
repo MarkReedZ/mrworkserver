@@ -29,7 +29,7 @@ int WorkServer_init(WorkServer* self, PyObject *args, PyObject *kwargs) {
   self->last_time = 0;
   if(!PyArg_ParseTuple(args, "Oi", &self->async_func, &self->gather_seconds)) return -1;
   self->task  = NULL;
-  if(!(self->task_done  = PyObject_GetAttrString((PyObject*)self, "task_done"))) return NULL;
+  if(!(self->task_done  = PyObject_GetAttrString((PyObject*)self, "task_done"))) return -1;
 
   return 0;
 }

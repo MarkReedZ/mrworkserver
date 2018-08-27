@@ -1,10 +1,11 @@
 #pragma once
 
+#include "Python.h"
+#include <stdbool.h>
+
 #include <stdint.h>
 #include <stddef.h>
 #include <assert.h>
-#include "Python.h"
-#include <stdbool.h>
 
 typedef void * JSOBJ;
 //typedef char bool;
@@ -25,5 +26,4 @@ void *jsonParse(char *str, char **endptr, size_t len); //, char **endptr);
 #ifdef __AVX2__
 void *jParse(char *s, char **endptr, size_t len);
 #endif
-
 
