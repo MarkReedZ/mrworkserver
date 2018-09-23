@@ -27,4 +27,4 @@ PyObject *WorkServer_cinit(WorkServer* self);
 
 PyObject* WorkServer_process_messages(WorkServer* self, int force);
 PyObject* WorkServer_task_done(WorkServer* self, PyObject* task);
-
+PyObject *WorkServer_hot(WorkServer *self, PyObject *args); 

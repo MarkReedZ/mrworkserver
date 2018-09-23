@@ -9,6 +9,7 @@ m1 = Extension(
       './src/mrworkserver/internals/module.c',
       './src/mrworkserver/internals/protocol.c',
       './src/mrworkserver/internals/ws.c',
+      './src/mrworkserver/internals/unpack.c',
      ],
      include_dirs = ['./src/mrworkserver/internals'],
      extra_compile_args = ['-msse4.2', '-mavx2', '-mbmi2', '-Wunused-variable','-std=c99','-Wno-discarded-qualifiers', '-Wno-unused-variable','-Wno-unused-function'],

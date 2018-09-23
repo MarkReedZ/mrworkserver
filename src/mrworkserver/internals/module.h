@@ -11,7 +11,8 @@
 
 static PyMethodDef WorkServer_methods[] = {
   //{"cinit",      (PyCFunction)WorkServer_cinit,       METH_NOARGS,  ""},
-  {"task_done",       (PyCFunction)WorkServer_task_done,       METH_O,       ""},
+  {"task_done",    (PyCFunction)WorkServer_task_done,   METH_O,       ""},
+  {"hot",          (PyCFunction)WorkServer_hot,         METH_VARARGS, ""},
   {NULL}
 };
 

@@ -5,6 +5,7 @@
 
 #include "ws.h"
 #include "module.h"
+#include "unpack.h"
 
 PyObject *WorkServer_new(PyTypeObject* type, PyObject *args, PyObject *kwargs) {
   WorkServer* self = NULL;
@@ -30,6 +31,10 @@ int WorkServer_init(WorkServer* self, PyObject *args, PyObject *kwargs) {
   if(!PyArg_ParseTuple(args, "Oi", &self->async_func, &self->gather_seconds)) return -1;
   self->task  = NULL;
   if(!(self->task_done  = PyObject_GetAttrString((PyObject*)self, "task_done"))) return -1;
+
+  //printf("init packer\n");
+  //initmrpacker();
+
 
   return 0;
 }
@@ -121,5 +126,27 @@ PyObject* WorkServer_task_done(WorkServer* self, PyObject* task)
   Py_XDECREF(self->task); self->task = NULL;
 
   Py_RETURN_NONE;
+}
+
+PyObject *WorkServer_hot(WorkServer *self, PyObject *args) {
+
+  int64_t rtg;
+  uint64_t ts;
+  if(!PyArg_ParseTuple(args, "LK", &rtg, &ts)) return NULL;
+ 
+  // Every 50,000 seconds a new timestamp gets + 1 ( a day is 86400 )
+  // log10(10,100,1000,etc) is 1,2,3... 
+  uint64_t r;
+  if ( rtg < 0 ) {
+    r = (long) ((((ts-1530000000ull) / 50000.0) - log10(-rtg))  *10000);
+  } else if ( rtg > 0 ) {
+    r = (long) ((((ts-1530000000) / 50000.0) + log10(rtg) )  *10000);
+  } else {
+    //r = (long) ((ts-1530000000) / 50000) * 10000;
+    r = (long) (ts-1530000000) / 5.0;
+  }
+  
+  return PyLong_FromUnsignedLong(r);
+
 }
 

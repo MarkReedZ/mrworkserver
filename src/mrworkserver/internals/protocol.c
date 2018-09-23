@@ -2,6 +2,7 @@
 #include "protocol.h"
 #include "module.h"
 #include "dec.h"
+#include "unpack.h"
 
 #include "Python.h"
 #include <errno.h>
@@ -149,6 +150,7 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
   }
 
   while ( data_left > 0 ) {
+    DBG printf(" top  while dl %d\n",data_left);
 
     if ( data_left < 4 ) {
       //printf("Received partial data need 4\n");
@@ -162,7 +164,7 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
     int topic = (unsigned char)p[2];
     int slot  = (unsigned char)p[3];
 
-    //printf(" cmd %d\n", cmd );
+    DBG printf(" dl %d cmd %d\n", data_left, cmd );
     //if ( cmd != 1 ) exit(0);
 
     //if ( data_left > 32 ) print_buffer( p, 32 );
@@ -176,7 +178,7 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
     else if ( cmd == 1 ) {
 
       if ( data_left < 8 ) {
-        //printf("Received partial data need 8\n");
+        DBG printf("Received partial data need 8\n");
         if ( self->bufp == NULL ) self->bufp = self->buf;
         memcpy(self->bufp, p, data_left);
         self->bufp += data_left;
@@ -186,7 +188,7 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
       //printf("cmd dl %d len %d\n",data_left,len);
 
       if ( data_left < len ) {
-        //printf("Received partial data dl %d need %d\n",data_left,len);
+        DBG printf("Received partial data dl %d need %d\n",data_left,len);
         if ( self->bufp == NULL ) self->bufp = self->buf;
         memcpy(self->bufp, p, data_left);
         self->bufp += data_left;
@@ -199,11 +201,12 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
       data_left -= len + 8;
 
       if ( len > 0 ) {
-
         //printf(" msg >%.*s<\n", len, p );
         //memcpy( s->write, p, len );
         char *endptr;
         PyObject *o;
+        //o = unpackc( p, len ); // initpacker first. TODO Want to try this again
+        //p += len;
 #ifdef __AVX2__
         o = (PyObject*)jParse(p, &endptr, len);
 #else
