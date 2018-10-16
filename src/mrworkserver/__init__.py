@@ -1,4 +1,5 @@
 
+from .statserver import setup_statserver, stats_timer
 from .internals import Protocol
 from .internals import WorkServer as CWorkServer
 from .workserver import *

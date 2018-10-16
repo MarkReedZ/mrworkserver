@@ -1,23 +1,28 @@
 
-import asyncio, ssl, sys
+import asyncio, ssl, sys, random
 import mrworkserver
 
+num = 0
 async def on_start(ws):
   print("on_start")
 async def on_stop(ws):
-  print("on_stop")
-
-num = 0
-async def callback(ws, msgs):
   global num
-  for m in msgs:
-    num += 1
-    print(m)
+  print("on_stop")
   print( "num",num)
 
-ws = mrworkserver.WorkServer(seconds_to_gather=5,callback=callback)
+async def callback(ws, msgs):
+  global num
+  #print(msgs)
+  #await asyncio.sleep( random.uniform( 0.01, 0.1 ) )
+  for m in msgs:
+    num += 1
+    #print(m)
+
+cs = True
+ws = mrworkserver.WorkServer(seconds_to_gather=5,callback=callback,collect_stats=cs)
 ws.on_start = on_start
 ws.on_stop = on_stop
+import time
 
 port = 7100
 print (sys.argv)

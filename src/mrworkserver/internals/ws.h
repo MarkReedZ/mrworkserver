@@ -16,6 +16,10 @@ typedef struct {
   int gather_seconds;
   unsigned long last_time;
 
+  bool collect_stats;
+  PyObject *async_times;
+  double async_start_time;
+
 
 } WorkServer;
 

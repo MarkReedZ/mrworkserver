@@ -2,6 +2,10 @@
 import codecs
 from setuptools import setup, Extension, find_packages
 
+#from distutils.command.install import INSTALL_SCHEMES
+#for scheme in INSTALL_SCHEMES.values():
+    #scheme['data'] = scheme['purelib']
+
 m1 = Extension(
     'mrworkserver.internals',
      sources = [ 
@@ -24,7 +28,7 @@ with codecs.open('README.md', encoding='utf-8') as f:
 
 setup(
   name="mrworkserver", 
-  version="0.5",
+  version="0.6",
   license='MIT',
   description='A python work server written in C',
   long_description = README,
@@ -32,6 +36,8 @@ setup(
   ext_modules = [m1],
   package_dir={'':'src'},
   packages=find_packages('src'),# + ['prof'],
+  #data_files=[('', ['html'])],
+  include_package_data=True,
   #package_data={'prof': ['prof.so']},
   install_requires=[
     #'uvloop<0.9.0',

@@ -185,7 +185,7 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
         Py_RETURN_NONE;
       }
       int len   = *((int*)(p)+1);
-      //printf("cmd dl %d len %d\n",data_left,len);
+      DBG printf("cmd dl %d len %d\n",data_left,len);
 
       if ( data_left < len ) {
         DBG printf("Received partial data dl %d need %d\n",data_left,len);
@@ -201,8 +201,6 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
       data_left -= len + 8;
 
       if ( len > 0 ) {
-        //printf(" msg >%.*s<\n", len, p );
-        //memcpy( s->write, p, len );
         char *endptr;
         PyObject *o;
         //o = unpackc( p, len ); // initpacker first. TODO Want to try this again
@@ -212,11 +210,10 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
 #else
         o = (PyObject*)jsonParse(p, &endptr, len);
 #endif
-        //PyObject_Print( o, stdout, 0 ); 
-        //printf("\n");
         // TODO what to do if bad json? Add error callback?
         if ( o != NULL ) {
           PyList_Append( ((WorkServer*)self->app)->list, o );
+          Py_DECREF(o);
         } else {
           if ( PyErr_Occurred() ) PyErr_Print(); // Prints exception and clears the error
         }

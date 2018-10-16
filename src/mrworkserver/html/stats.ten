@@ -1,0 +1,19 @@
+
+<html>
+<head>
+<style>
+img {
+  margin: 1em;
+}
+</style>
+</head>
+  <body bgcolor="#000000">
+<?py for img in imgs: ?>
+<img src="${img}" width=400 height=400 />
+<?py #endfor ?>
+
+  </body>
+</html>
+<!--
+<img src="${img}" width=400 height=400/>
+-->

@@ -1,4 +1,5 @@
 
+
 #include <Python.h>
 #include <stdbool.h>
 #include <time.h>
@@ -32,9 +33,13 @@ int WorkServer_init(WorkServer* self, PyObject *args, PyObject *kwargs) {
   self->task  = NULL;
   if(!(self->task_done  = PyObject_GetAttrString((PyObject*)self, "task_done"))) return -1;
 
+  self->collect_stats = false;
+  if(!(self->async_times = PyObject_GetAttrString((PyObject*)self, "async_times"  ))) return -1;
+  if ( self->async_times != Py_None ) { self->collect_stats = true; }
+
+
   //printf("init packer\n");
   //initmrpacker();
-
 
   return 0;
 }
@@ -48,28 +53,37 @@ PyObject* WorkServer_process_messages(WorkServer* self, int force) {
   //printf( "process %d\n",PyList_GET_SIZE(self->list));
 
   if ( !force ) {
-    // If we have enough items or enough time has passed and aren't waiting on a callback 
+
+    // Don't call the async func until the previous call completes
+    if ( self->task != NULL ) Py_RETURN_NONE;
+
+    // If we have enough items or enough time has passed 
+    //TODO if gather is not set we're going to process every 100 messages make an option?
     if ( self->gather_seconds ) {
       unsigned long cur_time = time(NULL);
-      if ( ((cur_time-self->last_time)>self->gather_seconds) && self->task == NULL ) {
+      
+      if ( (cur_time-self->last_time)>self->gather_seconds ) {
         self->last_time = cur_time;
       } else {
-        if ( PyList_GET_SIZE(self->list) < 5 ) { //TODO
-          Py_RETURN_NONE;
-        }
+        Py_RETURN_NONE;
       }
+
     } else {
-      if ( PyList_GET_SIZE(self->list) > 2 && self->task == NULL ) {
-        //return protocol_process_messages(self);
-      } else {
+      if ( PyList_GET_SIZE(self->list) < 100 ) {
         Py_RETURN_NONE;
       }
     }
   }
 
 
+  if ( self->collect_stats ) {
+    static struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
+    self->async_start_time = ts.tv_sec*1000 + (double)ts.tv_nsec/1000000;
+  }
   self->list2 = self->list;
   self->list = PyList_New(0);
+
+  //printf( "Calling async with %d items\n",PyList_GET_SIZE(self->list2));
 
   PyObject* tmp = NULL;
   PyObject* add_done_callback = NULL;
@@ -122,8 +136,15 @@ error:
 PyObject* WorkServer_task_done(WorkServer* self, PyObject* task)
 {
   Py_XDECREF(self->list2); self->list2 = NULL;
-
   Py_XDECREF(self->task); self->task = NULL;
+
+  if ( self->collect_stats ) {
+    static struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
+    double ms = (ts.tv_sec*1000 + (double)ts.tv_nsec/1000000) - self->async_start_time;
+    PyObject *pyms = PyFloat_FromDouble(ms);
+    PyList_Append( self->async_times, pyms );
+    Py_DECREF(pyms);
+  }
 
   Py_RETURN_NONE;
 }
