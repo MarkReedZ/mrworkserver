@@ -73,12 +73,12 @@ int Protocol_init(Protocol* self, PyObject *args, PyObject *kw)
 PyObject* Protocol_connection_made(Protocol* self, PyObject* transport)
 {
   PyObject* connections = NULL;
-
+  
   self->transport = transport; Py_INCREF(self->transport);
-
   if(!(self->write = PyObject_GetAttrString(transport, "write"))) return NULL;
-  if(!(connections = PyObject_GetAttrString(self->app, "_connections"))) return NULL;
 
+  // Is this necessary? Or just inc/dec?
+  if(!(connections = PyObject_GetAttrString(self->app, "_connections"))) return NULL;
   if(PySet_Add(connections, (PyObject*)self) == -1) { Py_XDECREF(connections); return NULL; }
   DBG printf("connection made num %ld\n", PySet_GET_SIZE(connections));
   Py_XDECREF(connections);
@@ -140,6 +140,8 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
   //if ( psz > 32 ) print_buffer( p, 32 );
 
   int data_left = psz;
+
+  // If we have buffered data append ourselves to it
   if ( self->bufp ) {
     //printf(" bufp!\n");
     //print_buffer( self->buf, self->bufp-self->buf);
@@ -165,8 +167,8 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
     int slot  = (unsigned char)p[3];
 
     DBG printf(" dl %d cmd %d\n", data_left, cmd );
-    //if ( cmd != 1 ) exit(0);
 
+    //if ( cmd != 1 ) exit(0);
     //if ( data_left > 32 ) print_buffer( p, 32 );
     //else print_buffer( p, data_left );
 
@@ -174,6 +176,54 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
       WorkServer_process_messages((WorkServer*)self->app, 1);
       p += 4;
       data_left -= 4;
+    }
+    else if ( cmd == 11 ) {
+      int len   = p[2]<<8 | p[3];
+      DBG printf("cmd dl %d len %d\n",data_left,len);
+
+      if ( data_left < len ) {
+        DBG printf("Received partial data dl %d need %d\n",data_left,len);
+        if ( self->bufp == NULL ) self->bufp = self->buf;
+        memcpy(self->bufp, p, data_left);
+        self->bufp += data_left;
+        //print_buffer( self->buf, data_left );
+        //printf(" set buf to %.*s\n", self->bufp-self->buf,self->buf);
+        Py_RETURN_NONE;
+      }
+
+      p += 4;
+      data_left -= len + 4;
+      if ( len > 0 ) {
+        char *endptr;
+        PyObject *o;
+#ifdef __AVX2__
+        o = (PyObject*)jParse(p, &endptr, len);
+#else
+        o = (PyObject*)jsonParse(p, &endptr, len);
+#endif
+        PyObject *ret = WorkServer_fetch((WorkServer*)self->app, o);
+
+        if ( !ret ) {
+          PyObject *type, *value, *traceback;
+          PyErr_Fetch(&type, &value, &traceback);
+          Py_XDECREF(traceback); Py_XDECREF(type);
+          PyErr_Clear();
+          printf("Unhandled exception in fetch callback:\n");
+          PyObject_Print( type, stdout, 0 ); printf("\n");
+          PyObject_Print( value, stdout, 0 ); printf("\n");
+        } 
+        Py_XDECREF(o);
+
+        if ( !PyBytes_Check( ret ) ) {
+          PyErr_SetString(PyExc_ValueError, "Fetch callback must return bytes");
+          return NULL;
+        }
+
+        if(!(o = PyObject_CallFunctionObjArgs(self->write, ret, NULL))) return NULL;
+        Py_DECREF(o);
+
+        return ret;
+      }
     }
     else if ( cmd == 1 ) {
 
@@ -200,10 +250,11 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
       p += 8;
       data_left -= len + 8;
 
+
       if ( len > 0 ) {
         char *endptr;
         PyObject *o;
-        //o = unpackc( p, len ); // initpacker first. TODO Want to try this again
+        //o = unpackc( p, len ); // initpacker first. TODO We should try this again - it has to be faster lol
         //p += len;
 #ifdef __AVX2__
         o = (PyObject*)jParse(p, &endptr, len);

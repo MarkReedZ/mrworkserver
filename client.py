@@ -3,19 +3,31 @@
 
 import asyncio
 from mrq.client import Client
-import mrjson
+import mrjson, mrpacker
+import mrq
+
+print (mrq.client.__version__)
+print(mrq.__file__)
 
 async def run(loop):
   c = Client()
   await c.connect(io_loop=loop,servers=[("127.0.0.1",7100)])
 
-  msg = mrjson.dumpb([1,2,3,4,5,6,7,8,9,10])
-  for x in range(20):
-    #for x in range(2):
-    await c.push( 0, 0, msg, len(msg) )
-    #await asyncio.sleep(1)
-  await c.flushcmd( 0, 0 )
-  await asyncio.sleep(2)
+  # Test fetch
+  if 1:
+    b = mrjson.dumpb([15,1,0,30])
+    ret = await c.get( b )
+    print(mrpacker.unpack(ret))
+
+  # Push some work
+  if 0:
+    msg = mrjson.dumpb([1,2,3,4,5,6,7,8,9,10])
+    while 1:
+      await c.push( 0, 0, msg, len(msg) )
+      await asyncio.sleep(0.2)
+    await c.flushcmd( 0, 0 )
+    await asyncio.sleep(2)
+
   await c.close()
 
 if __name__ == '__main__':

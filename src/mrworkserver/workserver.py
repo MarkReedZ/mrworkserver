@@ -1,5 +1,5 @@
 
-import socket, os, asyncio, time
+import socket, os, asyncio, time, struct
 from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO
 
@@ -8,13 +8,14 @@ from mrworkserver import setup_statserver, stats_timer
 
 
 class WorkServer(CWorkServer):
-  def __init__(self, *, protocol_factory=None, seconds_to_gather=0, collect_stats=False, callback=None):
+  def __init__(self, *, protocol_factory=None, seconds_to_gather=0, collect_stats=False, callback=None, fetch_callback=None):
     self._loop = asyncio.new_event_loop()
     asyncio.set_event_loop(self.loop)
     self._connections = set()
     self._protocol_factory = protocol_factory or Protocol
     self._seconds_to_gather = seconds_to_gather
     self.cb = callback
+    self.fetchcb = fetch_callback
     self.async_times = None
     self.collect_stats = False
     self.async_times_1m = []
@@ -61,7 +62,7 @@ class WorkServer(CWorkServer):
     self.on_start = None
     self.on_stop  = None
     #self.workq = asyncio.Queue(loop=self.loop)
-    super(WorkServer,self).__init__(callback, seconds_to_gather);
+    super(WorkServer,self).__init__(callback, seconds_to_gather)
 
 
   @property
@@ -75,6 +76,13 @@ class WorkServer(CWorkServer):
       #srv = Server( s[0], s[1] )
       #srv.r, srv.w = await asyncio.open_connection( s[0], s[1], loop=self._loop, limit=DEFAULT_BUFFER_SIZE, ssl=ssl)
       #self.servers.append(srv)
+
+  # Fetch
+  def prefetch(self, o):
+    b = self.fetchcb(self, o)
+    if not isinstance(b, bytes): return ""
+    b = b'\x02' + struct.pack("<I", len(b)) + b
+    return b    
 
 
   # Stats

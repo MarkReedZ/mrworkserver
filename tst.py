@@ -1,6 +1,6 @@
 
 import asyncio, ssl, sys, random
-import mrworkserver
+import mrworkserver, mrpacker
 
 num = 0
 async def on_start(ws):
@@ -18,8 +18,12 @@ async def callback(ws, msgs):
     num += 1
     #print(m)
 
+def fetchcb(ws, o):
+  #return "notbytes"
+  return mrpacker.pack([1,2,3])
+
 cs = True
-ws = mrworkserver.WorkServer(seconds_to_gather=5,callback=callback,collect_stats=cs)
+ws = mrworkserver.WorkServer(seconds_to_gather=5,callback=callback,collect_stats=cs,fetch_callback=fetchcb)
 ws.on_start = on_start
 ws.on_stop = on_stop
 import time

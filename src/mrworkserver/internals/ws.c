@@ -1,5 +1,4 @@
 
-
 #include <Python.h>
 #include <stdbool.h>
 #include <time.h>
@@ -32,7 +31,7 @@ int WorkServer_init(WorkServer* self, PyObject *args, PyObject *kwargs) {
   if(!PyArg_ParseTuple(args, "Oi", &self->async_func, &self->gather_seconds)) return -1;
   self->task  = NULL;
   if(!(self->task_done  = PyObject_GetAttrString((PyObject*)self, "task_done"))) return -1;
-
+  if(!(self->fetch_func = PyObject_GetAttrString((PyObject*)self, "prefetch" ))) return -1;
   self->collect_stats = false;
   if(!(self->async_times = PyObject_GetAttrString((PyObject*)self, "async_times"  ))) return -1;
   if ( self->async_times != Py_None ) { self->collect_stats = true; }
@@ -46,6 +45,10 @@ int WorkServer_init(WorkServer* self, PyObject *args, PyObject *kwargs) {
 
 PyObject *WorkServer_cinit(WorkServer* self) {
  Py_RETURN_NONE;
+}
+
+PyObject* WorkServer_fetch(WorkServer* self, PyObject *j) {
+  return PyObject_CallFunctionObjArgs(self->fetch_func, j, NULL);
 }
 
 PyObject* WorkServer_process_messages(WorkServer* self, int force) {

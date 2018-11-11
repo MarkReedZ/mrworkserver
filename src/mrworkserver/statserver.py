@@ -37,7 +37,7 @@ def setup_statserver(ws):
       data = ws.counts[name]["cnts"]
       title = ws.counts[name]["title"]
     else:
-      raise NotFound("OK")
+      raise NotFound("Page not found")
     b = await ws.loop.run_in_executor( ws.procpool, blocks, title, data )
     return response.raw(b,headers={'Content-Type': 'image/svg+xml'})
 
