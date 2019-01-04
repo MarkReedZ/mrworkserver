@@ -237,7 +237,7 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
       int len   = *((int*)(p)+1);
       DBG printf("cmd dl %d len %d\n",data_left,len);
 
-      if ( data_left < len ) {
+      if ( data_left < len+8 ) {
         DBG printf("Received partial data dl %d need %d\n",data_left,len);
         if ( self->bufp == NULL ) self->bufp = self->buf;
         memcpy(self->bufp, p, data_left);
@@ -254,6 +254,7 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
       if ( len > 0 ) {
         char *endptr;
         PyObject *o;
+        DBG print_buffer( p, len );
         //o = unpackc( p, len ); // initpacker first. TODO We should try this again - it has to be faster lol
         //p += len;
 #ifdef __AVX2__
@@ -261,7 +262,7 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
 #else
         o = (PyObject*)jsonParse(p, &endptr, len);
 #endif
-        // TODO what to do if bad json? Add error callback?
+        // TODO what to do if bad json? Add error callback? Return error to client?
         if ( o != NULL ) {
           PyList_Append( ((WorkServer*)self->app)->list, o );
           Py_DECREF(o);
@@ -271,6 +272,10 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
         p = endptr;
       }
 
+    }
+    else if ( cmd == 9 ) {
+      p += 4;
+      data_left -= 4;
     }
     else {
       printf("ERROR unrecognized cmd %d\n",cmd);
