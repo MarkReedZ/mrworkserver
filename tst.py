@@ -6,24 +6,20 @@ num = 0
 async def on_start(ws):
   print("on_start")
 async def on_stop(ws):
-  global num
-  print("on_stop")
-  print( "num",num)
+  print("on_stop, num =",num)
 
 async def callback(ws, msgs):
   global num
-  #print(msgs)
-  #await asyncio.sleep( random.uniform( 0.01, 0.1 ) )
   for m in msgs:
     num += 1
     #print(m)
 
 def fetchcb(ws, o):
-  #return "notbytes"
-  return mrpacker.pack([1,2,3])
+  print(o)
+  return mrpacker.pack(o)
 
-cs = True
-ws = mrworkserver.WorkServer(seconds_to_gather=5,callback=callback,collect_stats=cs,fetch_callback=fetchcb)
+collect_stats = False
+ws = mrworkserver.WorkServer(seconds_to_gather=1,callback=callback,collect_stats=collect_stats,fetch_callback=fetchcb)
 ws.on_start = on_start
 ws.on_stop = on_stop
 import time

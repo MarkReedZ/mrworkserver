@@ -1,28 +1,39 @@
-from sanic import Sanic
-from sanic import response
-from sanic.exceptions import NotFound
-import asyncio
-import pygal
-import psutil
 
-import mrworkserver
-from mrhttp import escape
-import tenjin, os
-from tenjin.helpers import *
-tenjin.set_template_encoding('utf-8')
-engine = tenjin.Engine(path=[os.path.dirname(__file__)+'/html'],escapefunc='escape',tostrfunc='str')
 
-from pygal.style import DarkStyle
-cstyle = DarkStyle(
-  title_font_size=28,
-  label_font_size=24,
-  major_label_font_size=24
-)
+
+
+def escape(x):
+  return x
+  
 
 def setup_statserver(ws):
+  global pygal, cstyle, escape
+  try: 
+    import asyncio
+    from mrhttp import app
+    import pygal
+    import psutil
+    
+    #import mrworkserver
+    from mrhttp import escape
+    import tenjin, os
+    #from tenjin.helpers import *
+    tenjin.set_template_encoding('utf-8')
+    engine = tenjin.Engine(path=[os.path.dirname(__file__)+'/html'],escapefunc='escape',tostrfunc='str')
+    from pygal.style import DarkStyle
+    cstyle = DarkStyle(
+      title_font_size=28,
+      label_font_size=24,
+      major_label_font_size=24
+    )
+  except Exception as e:
+    print("Enabling stats collection requires the following modules which appear to be missing:")
+    print("pip install pygal psutil tenjin mrhttp")
+    print(e)
+    exit(0)
 
-  app = Sanic(__name__,configure_logging=False)
-  @app.route("/<name>")
+
+  @app.route('/{}')
   async def test(r,name):
     if name == "time":
       data = ws.async_times
@@ -37,18 +48,23 @@ def setup_statserver(ws):
       data = ws.counts[name]["cnts"]
       title = ws.counts[name]["title"]
     else:
-      raise NotFound("Page not found")
+      raise r.NotFound()
     b = await ws.loop.run_in_executor( ws.procpool, blocks, title, data )
-    return response.raw(b,headers={'Content-Type': 'image/svg+xml'})
+   
+    r.response.headers["Content-Type"] = 'image/svg+xml'
+    return b.decode("utf-8")
 
-  @app.route("/")
+  @app.route('/')
   async def index(r):
     imgs = ["time","cpu","mem"]
     imgs.extend( ws.counts.keys() )
-    return response.html(engine.render('stats.ten', {"imgs":imgs}))
+    return engine.render('stats.ten', {"imgs":imgs})
 
-  server = app.create_server(host="0.0.0.0", port=5000)
-  return asyncio.ensure_future(server)
+  try:
+    server = app.start_server(host="0.0.0.0", port=7099, loop=ws.loop)
+  except Exception as e:
+    print(e)
+  return asyncio.ensure_future(server, loop=ws.loop)
 
 async def stats_timer(self):
   minute = 0
@@ -84,6 +100,6 @@ def blocks(title, data):
     line_chart.add('', data)
     return line_chart.render()
   except Exception as e:
-    print("chart exception", args, str(e))
+    print("chart exception", title, data, str(e))
     return b''
 

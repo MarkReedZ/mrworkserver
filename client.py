@@ -2,31 +2,26 @@
 # pip install asyncmrq mrjson
 
 import asyncio
-from mrq.client import Client
-import mrjson, mrpacker
-import mrq
+import mrpacker
+import asyncmrq
 
-print (mrq.client.__version__)
-print(mrq.__file__)
+
 
 async def run(loop):
-  c = Client()
+  c = asyncmrq.Client()
   await c.connect(io_loop=loop,servers=[("127.0.0.1",7100)])
 
   # Test fetch
-  if 1:
-    b = mrjson.dumpb([15,1,0,30])
-    ret = await c.get( b )
-    print(mrpacker.unpack(ret))
+  if 0:
+    print( mrpacker.unpack(await c.get( 0, mrpacker.pack([1,2,3]))) )
 
   # Push some work
-  if 0:
-    msg = mrjson.dumpb([1,2,3,4,5,6,7,8,9,10])
-    while 1:
+  if 1:
+    msg = mrpacker.pack([1,2,3,4,5,6,7,8,9,10])
+    for x in range(10):
+      print(x)
       await c.push( 0, 0, msg, len(msg) )
-      await asyncio.sleep(0.2)
-    await c.flushcmd( 0, 0 )
-    await asyncio.sleep(2)
+      await asyncio.sleep(1)
 
   await c.close()
 

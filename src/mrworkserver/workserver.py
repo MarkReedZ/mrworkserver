@@ -31,8 +31,10 @@ class WorkServer(CWorkServer):
       self.counts = {}
       self.procpool = ProcessPoolExecutor(2)
 
-
-      self.webserver_task = setup_statserver(self)
+      try:
+        self.webserver_task = setup_statserver(self)
+      except Exception as e:
+        print(e)
 
       #app = Sanic(__name__,configure_logging=False)
       #@app.route("/<name>")
@@ -127,11 +129,12 @@ class WorkServer(CWorkServer):
       if self.stats_task: self.stats_task.cancel()
       if self.webserver_task: self.webserver_task.cancel()
       server.close()
-      loop = asyncio.get_event_loop()
+      #loop = asyncio.get_event_loop()
       if self.on_stop:
         loop.run_until_complete( self.on_stop(self) )
       loop.run_until_complete(server.wait_closed())
       loop.close()
+      print("finally done")
 
 #class ChartData:
   #title = ""
