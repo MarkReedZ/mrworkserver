@@ -1,4 +1,5 @@
 
+
 #include "protocol.h"
 #include "module.h"
 #include "dec.h"
@@ -10,6 +11,10 @@
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+
+#define CMD_PUSH  0x1
+#define CMD_FLUSH 0xA
+#define CMD_GET   0xB
 
 static void print_buffer( char* b, int len ) {
   for ( int z = 0; z < len; z++ ) {
@@ -172,12 +177,12 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
     //if ( data_left > 32 ) print_buffer( p, 32 );
     //else print_buffer( p, data_left );
 
-    if ( cmd == 10 ) {
+    if ( cmd == CMD_FLUSH ) {
       WorkServer_process_messages((WorkServer*)self->app, 1);
       p += 4;
       data_left -= 4;
     }
-    else if ( cmd == 11 ) {
+    else if ( cmd == CMD_GET ) {
       int len   = p[2]<<8 | p[3];
       DBG printf("cmd dl %d len %d\n",data_left,len);
 
@@ -191,16 +196,19 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
         Py_RETURN_NONE;
       }
 
+      // TODO We're returning after processing this - need tests
       p += 4;
       data_left -= len + 4;
       if ( len > 0 ) {
         char *endptr;
         PyObject *o;
-#ifdef __AVX2__
-        o = (PyObject*)jParse(p, &endptr, len);
-#else
-        o = (PyObject*)jsonParse(p, &endptr, len);
-#endif
+        o = unpackc( p, len ); 
+        p += len;
+//#ifdef __AVX2__
+        //o = (PyObject*)jParse(p, &endptr, len);
+//#else
+        //o = (PyObject*)jsonParse(p, &endptr, len);
+//#endif
         PyObject *ret = WorkServer_fetch((WorkServer*)self->app, o);
 
         if ( !ret ) {
@@ -211,6 +219,8 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
           printf("Unhandled exception in fetch callback:\n");
           PyObject_Print( type, stdout, 0 ); printf("\n");
           PyObject_Print( value, stdout, 0 ); printf("\n");
+          // TODO write error response back
+          return NULL;
         } 
         Py_XDECREF(o);
 
@@ -222,10 +232,10 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
         if(!(o = PyObject_CallFunctionObjArgs(self->write, ret, NULL))) return NULL;
         Py_DECREF(o);
 
-        return ret;
+        //return ret;
       }
     }
-    else if ( cmd == 1 ) {
+    else if ( cmd == CMD_PUSH ) {
 
       if ( data_left < 8 ) {
         DBG printf("Received partial data need 8\n");
@@ -255,13 +265,14 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
         char *endptr;
         PyObject *o;
         DBG print_buffer( p, len );
-        //o = unpackc( p, len ); // initpacker first. TODO We should try this again - it has to be faster lol
-        //p += len;
-#ifdef __AVX2__
-        o = (PyObject*)jParse(p, &endptr, len);
-#else
-        o = (PyObject*)jsonParse(p, &endptr, len);
-#endif
+        o = unpackc( p, len ); // initpacker first. TODO We should try this again - it has to be faster lol
+        p += len;
+//#ifdef __AVX2__
+        //o = (PyObject*)jParse(p, &endptr, len);
+//#else
+        //o = (PyObject*)jsonParse(p, &endptr, len);
+//#endif
+        //p = endptr;
         // TODO what to do if bad json? Add error callback? Return error to client?
         if ( o != NULL ) {
           PyList_Append( ((WorkServer*)self->app)->list, o );
@@ -269,7 +280,6 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
         } else {
           if ( PyErr_Occurred() ) PyErr_Print(); // Prints exception and clears the error
         }
-        p = endptr;
       }
 
     }
