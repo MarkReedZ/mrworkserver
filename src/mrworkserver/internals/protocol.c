@@ -12,9 +12,11 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
-#define CMD_PUSH  0x1
-#define CMD_FLUSH 0xA
-#define CMD_GET   0xB
+#define CMD_PUSH   0x1
+#define CMD_PUSHJ  0x2
+#define CMD_FLUSH  0xA
+#define CMD_GET    0xB
+#define CMD_SET    0xC
 
 static void print_buffer( char* b, int len ) {
   for ( int z = 0; z < len; z++ ) {
@@ -168,8 +170,8 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
     }
 
     int cmd   = (unsigned char)p[1];
-    int topic = (unsigned char)p[2];
-    int slot  = (unsigned char)p[3];
+    //int topic = (unsigned char)p[2];
+    //int slot  = (unsigned char)p[3];
 
     DBG printf(" dl %d cmd %d\n", data_left, cmd );
 
@@ -179,8 +181,33 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
 
     if ( cmd == CMD_FLUSH ) {
       WorkServer_process_messages((WorkServer*)self->app, 1);
+      p += 2;
+      data_left -= 2;
+    }
+    else if ( cmd == CMD_SET ) {
+      int len   = p[2]<<8 | p[3];
+
+      if ( data_left < len ) {
+        DBG printf("Received partial data dl %d need %d\n",data_left,len);
+        if ( self->bufp == NULL ) self->bufp = self->buf;
+        memcpy(self->bufp, p, data_left);
+        self->bufp += data_left;
+        //print_buffer( self->buf, data_left );
+        //printf(" set buf to %.*s\n", self->bufp-self->buf,self->buf);
+        Py_RETURN_NONE;
+      }
+
       p += 4;
-      data_left -= 4;
+      data_left -= len + 4;
+      if ( len > 0 ) {
+      
+        PyObject *o = unpackc( p, len ); 
+        p += len;
+
+        PyObject *ret = WorkServer_set((WorkServer*)self->app, PyList_GetItem(o, 0), PyList_GetItem(o, 1));
+
+      }
+
     }
     else if ( cmd == CMD_GET ) {
       int len   = p[2]<<8 | p[3];
@@ -196,7 +223,6 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
         Py_RETURN_NONE;
       }
 
-      // TODO We're returning after processing this - need tests
       p += 4;
       data_left -= len + 4;
       if ( len > 0 ) {
@@ -215,7 +241,7 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
           PyObject *type, *value, *traceback;
           PyErr_Fetch(&type, &value, &traceback);
           Py_XDECREF(traceback); Py_XDECREF(type);
-          PyErr_Clear();
+          PyErr_Restore(type, value, traceback);
           printf("Unhandled exception in fetch callback:\n");
           PyObject_Print( type, stdout, 0 ); printf("\n");
           PyObject_Print( value, stdout, 0 ); printf("\n");
@@ -224,30 +250,33 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
         } 
         Py_XDECREF(o);
 
-        if ( !PyBytes_Check( ret ) ) {
-          PyErr_SetString(PyExc_ValueError, "Fetch callback must return bytes");
-          return NULL;
+        // If the user returned None do not send a response TODO doc and test
+        if ( ret != Py_None ) {
+
+          if ( !PyBytes_Check( ret ) ) {
+            PyErr_SetString(PyExc_ValueError, "Fetch callback must return bytes");
+            return NULL;
+          }
+          if(!(o = PyObject_CallFunctionObjArgs(self->write, ret, NULL))) return NULL;
+          Py_DECREF(o);
+
         }
 
-        if(!(o = PyObject_CallFunctionObjArgs(self->write, ret, NULL))) return NULL;
-        Py_DECREF(o);
-
-        //return ret;
       }
     }
-    else if ( cmd == CMD_PUSH ) {
+    else if ( cmd == CMD_PUSH || cmd == CMD_PUSHJ ) {
 
-      if ( data_left < 8 ) {
+      if ( data_left < 6 ) {
         DBG printf("Received partial data need 8\n");
         if ( self->bufp == NULL ) self->bufp = self->buf;
         memcpy(self->bufp, p, data_left);
         self->bufp += data_left;
         Py_RETURN_NONE;
       }
-      int len   = *((int*)(p)+1);
+      int len   = *((int*)(p+2));
       DBG printf("cmd dl %d len %d\n",data_left,len);
 
-      if ( data_left < len+8 ) {
+      if ( data_left < len+6 ) {
         DBG printf("Received partial data dl %d need %d\n",data_left,len);
         if ( self->bufp == NULL ) self->bufp = self->buf;
         memcpy(self->bufp, p, data_left);
@@ -257,22 +286,27 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
         Py_RETURN_NONE;
       }
 
-      p += 8;
-      data_left -= len + 8;
+      p += 6;
+      data_left -= len + 6;
 
 
       if ( len > 0 ) {
         char *endptr;
         PyObject *o;
-        DBG print_buffer( p, len );
-        o = unpackc( p, len ); // initpacker first. TODO We should try this again - it has to be faster lol
-        p += len;
-//#ifdef __AVX2__
-        //o = (PyObject*)jParse(p, &endptr, len);
-//#else
-        //o = (PyObject*)jsonParse(p, &endptr, len);
-//#endif
-        //p = endptr;
+        //print_buffer( p, len );
+
+        if ( cmd == CMD_PUSH ) {
+          o = unpackc( p, len ); 
+          p += len;
+        } else {
+#ifdef __AVX2__
+          o = (PyObject*)jParse(p, &endptr, len);
+#else
+          o = (PyObject*)jsonParse(p, &endptr, len);
+#endif
+          p = endptr;
+        }
+
         // TODO what to do if bad json? Add error callback? Return error to client?
         if ( o != NULL ) {
           PyList_Append( ((WorkServer*)self->app)->list, o );
@@ -284,8 +318,8 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
 
     }
     else if ( cmd == 9 ) {
-      p += 4;
-      data_left -= 4;
+      p += 2;
+      data_left -= 2;
     }
     else {
       printf("ERROR unrecognized cmd %d\n",cmd);

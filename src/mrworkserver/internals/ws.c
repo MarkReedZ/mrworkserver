@@ -32,6 +32,7 @@ int WorkServer_init(WorkServer* self, PyObject *args, PyObject *kwargs) {
   self->task  = NULL;
   if(!(self->task_done  = PyObject_GetAttrString((PyObject*)self, "task_done"))) return -1;
   if(!(self->fetch_func = PyObject_GetAttrString((PyObject*)self, "prefetch" ))) return -1;
+  if(!(self->set_func   = PyObject_GetAttrString((PyObject*)self, "preset" ))) return -1;
   self->collect_stats = false;
   if(!(self->async_times = PyObject_GetAttrString((PyObject*)self, "async_times"  ))) return -1;
   if ( self->async_times != Py_None ) { self->collect_stats = true; }
@@ -50,6 +51,9 @@ PyObject *WorkServer_cinit(WorkServer* self) {
 PyObject* WorkServer_fetch(WorkServer* self, PyObject *j) {
   return PyObject_CallFunctionObjArgs(self->fetch_func, j, NULL);
 }
+PyObject* WorkServer_set(WorkServer* self, PyObject *k, PyObject *v) {
+  return PyObject_CallFunctionObjArgs(self->set_func, k, v, NULL);
+}
 
 PyObject* WorkServer_process_messages(WorkServer* self, int force) {
 
@@ -61,7 +65,6 @@ PyObject* WorkServer_process_messages(WorkServer* self, int force) {
     if ( self->task != NULL ) Py_RETURN_NONE;
 
     // If we have enough items or enough time has passed 
-    //TODO if gather is not set we're going to process every 100 messages make an option?
     if ( self->gather_seconds ) {
       unsigned long cur_time = time(NULL);
       
@@ -71,11 +74,14 @@ PyObject* WorkServer_process_messages(WorkServer* self, int force) {
         Py_RETURN_NONE;
       }
 
-    } else {
-      if ( PyList_GET_SIZE(self->list) < 100 ) {
-        Py_RETURN_NONE;
-      }
     }
+
+    // TODO If you don't set gather seconds then we process immediately each msg as it comes in Benchmark and document
+     //else {
+      //if ( PyList_GET_SIZE(self->list) < 100 ) {
+        //Py_RETURN_NONE;
+      //}
+    //}
   }
 
 

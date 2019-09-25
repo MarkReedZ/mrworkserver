@@ -9,6 +9,7 @@ typedef struct {
 
   PyObject* async_func;
   PyObject* fetch_func;
+  PyObject* set_func;
   PyObject* task_done;
   PyObject* create_task;
   PyObject* task;
@@ -32,5 +33,6 @@ PyObject *WorkServer_cinit(WorkServer* self);
 
 PyObject* WorkServer_process_messages(WorkServer* self, int force);
 PyObject* WorkServer_fetch           (WorkServer* self, PyObject *j);
-PyObject* WorkServer_task_done(WorkServer* self, PyObject* task);
-PyObject *WorkServer_hot(WorkServer *self, PyObject *args); 
+PyObject* WorkServer_set             (WorkServer* self, PyObject *k, PyObject *v);
+PyObject* WorkServer_task_done       (WorkServer* self, PyObject* task);
+PyObject *WorkServer_hot             (WorkServer *self, PyObject *args); 

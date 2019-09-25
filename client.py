@@ -1,22 +1,22 @@
 
-# pip install asyncmrq mrjson
+# pip install asyncmrws mrjson
 
 import asyncio
 import mrpacker
-import asyncmrq
+import asyncmrws
 
 
 
 async def run(loop):
-  c = asyncmrq.Client()
+  c = asyncmrws.Client()
   await c.connect(io_loop=loop,servers=[("127.0.0.1",7100)])
 
   # Test fetch
-  if 0:
+  if 1:
     print( mrpacker.unpack(await c.get( 0, mrpacker.pack([1,2,3]))) )
 
   # Push some work
-  if 1:
+  if 0:
     msg = mrpacker.pack([1,2,3,4,5,6,7,8,9,10])
     for x in range(10):
       print(x)

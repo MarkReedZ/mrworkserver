@@ -190,6 +190,7 @@ PyObject *decode( char *s, char *end) {
       o = PyDict_New();
     }
   } else {
+    printf(" Error invalid code >%d<\n", *(s) );
     PyErr_Format(PyExc_ValueError, "Parser error");
     return NULL;
   }

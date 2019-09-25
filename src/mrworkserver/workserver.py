@@ -4,7 +4,10 @@ from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO
 
 from mrworkserver import Protocol, CWorkServer
-from mrworkserver import setup_statserver, stats_timer
+
+# TODO Remove stat server - just have a get_stats cmd and let the client graph
+#from mrworkserver import setup_statserver, stats_timer
+from mrworkserver import stats_timer
 
 
 class WorkServer(CWorkServer):
@@ -16,11 +19,12 @@ class WorkServer(CWorkServer):
     self._seconds_to_gather = seconds_to_gather
     self.cb = callback
     self.fetchcb = fetch_callback
+    self.setcb   = self.nop
     self.async_times = None
     self.collect_stats = False
     self.async_times_1m = []
     self.stats_task = None
-    self.webserver_task = None
+    #self.webserver_task = None
     if collect_stats:
       self.collect_stats = True
       self.cdata = {}
@@ -31,31 +35,11 @@ class WorkServer(CWorkServer):
       self.counts = {}
       self.procpool = ProcessPoolExecutor(2)
 
-      try:
-        self.webserver_task = setup_statserver(self)
-      except Exception as e:
-        print(e)
+      #try:
+        #self.webserver_task = setup_statserver(self)
+      #except Exception as e:
+        #print(e)
 
-      #app = Sanic(__name__,configure_logging=False)
-      #@app.route("/<name>")
-      #async def test(r,name):
-        #if name == "time": 
-          #data = self.async_times
-          #title = 'Processing time (ms)'
-        #elif name == "cpu": 
-          #data = self.cpu
-          #title = 'CPU Utilization'
-        #elif name == "mem": 
-          #data = self.mem
-          #title = 'Memory Usage'
-        #elif name in self.counts:
-          #data = self.counts[name]["cnts"]
-          #title = self.counts[name]["title"]
-        #else:
-          #raise NotFound("OK")
-        #b = await self.loop.run_in_executor( self.procpool, blocks, title, data )
-        #return response.raw(b,headers={'Content-Type': 'image/svg+xml'})
-#
       #server = app.create_server(host="0.0.0.0", port=5000)
       #self.webserver_task = asyncio.ensure_future(server)
 
@@ -82,10 +66,17 @@ class WorkServer(CWorkServer):
   # Fetch
   def prefetch(self, o):
     b = self.fetchcb(self, o)
+    if b == None: return None
     if not isinstance(b, bytes): return ""
     b = b'\x02' + struct.pack("<I", len(b)) + b
     return b    
 
+  def nop(self, o):
+    pass
+
+  # Set
+  def preset(self, k, v):
+    self.setcb(self, k, v)
 
   # Stats
   def count_title(self, name, title):
@@ -127,7 +118,7 @@ class WorkServer(CWorkServer):
       pass
     finally:
       if self.stats_task: self.stats_task.cancel()
-      if self.webserver_task: self.webserver_task.cancel()
+      #if self.webserver_task: self.webserver_task.cancel()
       server.close()
       #loop = asyncio.get_event_loop()
       if self.on_stop:
@@ -136,26 +127,5 @@ class WorkServer(CWorkServer):
       loop.close()
       print("finally done")
 
-#class ChartData:
-  #title = ""
-  #data = []
-  
-
-def blocks(title, data):
-  try:
-    line_chart = pygal.Line()
-    line_chart.title = title
-    line_chart.add('avg', data)
-    return line_chart.render()
-  except Exception as e:
-    print("chart exception", args, str(e))
-    return b''
-    
-
-  #b = BytesIO()
-  #plt.plot(data)
-  #plt.savefig(b, format='png')
-  #return b.getvalue()
-  #plt.savefig('foo.png', bbox_inches='tight') 
 
 

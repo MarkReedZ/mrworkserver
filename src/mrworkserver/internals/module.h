@@ -22,6 +22,7 @@ static PyMethodDef Protocol_methods[] = {
   {"connection_lost", (PyCFunction)Protocol_connection_lost, METH_VARARGS, ""},
   {"eof_received",    (PyCFunction)Protocol_eof_received,    METH_NOARGS,  ""},
   {"data_received",   (PyCFunction)Protocol_data_received,   METH_O,       ""},
+  //{"reply",           (PyCFunction)Protocol_reply, METH_VARARGS, ""},
   {NULL}
 };
 static PyGetSetDef Protocol_getset[] = {
