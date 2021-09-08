@@ -54,6 +54,7 @@ PyObject * Protocol_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 void Protocol_dealloc(Protocol* self)
 {
+  free(self->buf);
   Py_XDECREF(self->app);
   Py_XDECREF(self->transport);
   Py_XDECREF(self->write);

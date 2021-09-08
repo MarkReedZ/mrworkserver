@@ -125,7 +125,6 @@ class WorkServer(CWorkServer):
         loop.run_until_complete( self.on_stop(self) )
       loop.run_until_complete(server.wait_closed())
       loop.close()
-      print("finally done")
 
 
 
