@@ -89,8 +89,7 @@ PyObject* WorkServer_process_messages(WorkServer* self, int force) {
     static struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
     self->async_start_time = ts.tv_sec*1000 + (double)ts.tv_nsec/1000000;
   }
-  self->list2 = self->list;
-  self->list = PyList_New(0);
+  self->list2 = self->list; self->list = PyList_New(0);
 
   //printf( "Calling async with %d items\n",PyList_GET_SIZE(self->list2));
 

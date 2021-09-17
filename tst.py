@@ -6,8 +6,10 @@ import time
 
 
 num = 0
+
 async def on_start(ws):
   print("on_start")
+
 async def on_stop(ws):
   print("on_stop, num =",num)
 
@@ -15,23 +17,13 @@ async def reply_cb(ws, msgs): #conn, reply_id):
   for m in msgs:
     conn.reply( m[0], m[1], "ok" )
 
-#l = []
-def bb(m):
-  global num
-  num += 1
-  #l.append(m)
-  
 async def callback(ws, msgs):
   start = time.time()
   global num
   l = []
   for m in msgs:
-    #num += 1
-    bb(m)
-    #l.append(m)
-    #print(m)
-  print(num)
-  print ("Processing",len(msgs),"took: ",(time.time() - start))
+    num += 1
+  print ("Processing",len(msgs)," num ",num, " took: ",(time.time() - start))
 
 users = {}
 def setcb(ws, k, v):
@@ -39,11 +31,11 @@ def setcb(ws, k, v):
   users[k] = mrpacker.pack(v)
 
 def fetchcb(ws, o):
-  if o in users:
-    return users[o]
-  else:
-    return b''
-  #return mrpacker.pack( {"name":"mark"} )
+  #if o in users:
+    #return users[o]
+  #else:
+    #return b''
+  return mrpacker.pack( {"name":"mark"} )
 
 collect_stats = False
 ws = mrworkserver.WorkServer(seconds_to_gather=1,callback=callback,collect_stats=collect_stats,fetch_callback=fetchcb)
@@ -61,3 +53,4 @@ if len(sys.argv) == 2:
 #sc.load_cert_chain(certfile='cert/server.crt', keyfile='cert/server.key')
 ws.run(host="127.0.0.1",port=port) #ssl=sc)
 
+print("DONE")

@@ -1,5 +1,4 @@
 
-
 #include "protocol.h"
 #include "module.h"
 #include "dec.h"
@@ -20,7 +19,7 @@
 
 static void print_buffer( char* b, int len ) {
   for ( int z = 0; z < len; z++ ) {
-    printf( "%02x ",(int)b[z]);
+    printf( "%02x ",(unsigned char)b[z]);
   }
   printf("\n");
 }
@@ -258,6 +257,15 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
             PyErr_SetString(PyExc_ValueError, "Fetch callback must return bytes");
             return NULL;
           }
+          //unsigned int *i = (fetch_resp+1);
+          //*i = PyBytes_GET_SIZE(ret);
+          //unsigned int x = PyBytes_GET_SIZE(ret);
+          //printf("DELME len is %d x %d\n",*i, x); print_buffer( fetch_resp, 5 ); printf("\n");
+          
+          //PyObject *bytes = PyBytes_FromStringAndSize( fetch_resp, 5 );
+          //PyObject_Print( bytes, stdout, 0 ); printf("\n"); // DELME
+          //PyObject_Print( ret, stdout, 0 ); printf("\n"); // DELME
+          //if(!(o = PyObject_CallFunctionObjArgs(self->write, bytes, NULL))) return NULL;
           if(!(o = PyObject_CallFunctionObjArgs(self->write, ret, NULL))) return NULL;
           Py_DECREF(o);
 

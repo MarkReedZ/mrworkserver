@@ -9,6 +9,15 @@
 
 #define MAX_DEPTH 64
 
+// DELME
+static void print_buffer( char* b, int len ) {
+  for ( int z = 0; z < len; z++ ) {
+    printf( "%02x ",(unsigned char)b[z]);
+  }
+  printf("\n");
+}
+
+
 #ifdef _MSC_VER
 
 #ifdef _M_IX86
