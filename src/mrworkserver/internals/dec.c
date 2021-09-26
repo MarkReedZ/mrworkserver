@@ -405,14 +405,7 @@ JSOBJ jParse(char *s, char **endptr, size_t len) {
           b0 = _mm256_loadu_si256((__m256i *)(buf + 32*0));
           b1 = _mm256_loadu_si256((__m256i *) (tmpbuf));
         
-          //if ( dist == 45 ) {
-            //printf("WTF %016llx\n", ((unsigned long)_mm256_movemask_epi8(_mm256_cmpeq_epi8(rrq, b1))));
-          //}
           quoteBitMap[bmidx] = (_mm256_movemask_epi8(_mm256_cmpeq_epi8(rrq, b0))&0xffffffffull) | ((unsigned long)_mm256_movemask_epi8(_mm256_cmpeq_epi8(rrq, b1))<<32);
-          //if ( dist == 45 ) {
-            //printf(" DELME qbm %016lx\n", quoteBitMap[bmidx]);
-            //printf("buf >%.*s<\n", dist, buf);
-          //}
           __m256i is0_or_esc0 = _mm256_or_si256(_mm256_cmpeq_epi8(rr0, b0),_mm256_cmpeq_epi8(rr_esc, b0));
           __m256i is0_or_esc1 = _mm256_or_si256(_mm256_cmpeq_epi8(rr0, b1),_mm256_cmpeq_epi8(rr_esc, b1));
           __m256i q0 = _mm256_or_si256(_mm256_cmpgt_epi8(rr0, b0), is0_or_esc0);

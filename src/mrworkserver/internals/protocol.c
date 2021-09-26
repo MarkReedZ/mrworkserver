@@ -1,4 +1,5 @@
 
+
 #include "protocol.h"
 #include "module.h"
 #include "dec.h"
@@ -62,7 +63,6 @@ void Protocol_dealloc(Protocol* self)
 
 int Protocol_init(Protocol* self, PyObject *args, PyObject *kw)
 {
-  DBG printf("protocol  init\n");
   self->closed = true;
 
   if(!PyArg_ParseTuple(args, "O", &self->app)) return -1;
@@ -218,8 +218,6 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
         if ( self->bufp == NULL ) self->bufp = self->buf;
         memcpy(self->bufp, p, data_left);
         self->bufp += data_left;
-        //print_buffer( self->buf, data_left );
-        //printf(" set buf to %.*s\n", self->bufp-self->buf,self->buf);
         Py_RETURN_NONE;
       }
 
@@ -229,6 +227,7 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
         char *endptr;
         PyObject *o;
         o = unpackc( p, len ); 
+
         p += len;
 //#ifdef __AVX2__
         //o = (PyObject*)jParse(p, &endptr, len);
@@ -236,6 +235,7 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
         //o = (PyObject*)jsonParse(p, &endptr, len);
 //#endif
         PyObject *ret = WorkServer_fetch((WorkServer*)self->app, o);
+        Py_XDECREF(o);
 
         if ( !ret ) {
           PyObject *type, *value, *traceback;
@@ -248,27 +248,19 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
           // TODO write error response back
           return NULL;
         } 
-        Py_XDECREF(o);
 
-        // If the user returned None do not send a response TODO doc and test
+        // If the user returned None do not send a response TODO What?
         if ( ret != Py_None ) {
 
           if ( !PyBytes_Check( ret ) ) {
+            Py_DECREF(ret);
             PyErr_SetString(PyExc_ValueError, "Fetch callback must return bytes");
             return NULL;
           }
-          //unsigned int *i = (fetch_resp+1);
-          //*i = PyBytes_GET_SIZE(ret);
-          //unsigned int x = PyBytes_GET_SIZE(ret);
-          //printf("DELME len is %d x %d\n",*i, x); print_buffer( fetch_resp, 5 ); printf("\n");
           
-          //PyObject *bytes = PyBytes_FromStringAndSize( fetch_resp, 5 );
-          //PyObject_Print( bytes, stdout, 0 ); printf("\n"); // DELME
-          //PyObject_Print( ret, stdout, 0 ); printf("\n"); // DELME
-          //if(!(o = PyObject_CallFunctionObjArgs(self->write, bytes, NULL))) return NULL;
           if(!(o = PyObject_CallFunctionObjArgs(self->write, ret, NULL))) return NULL;
           Py_DECREF(o);
-
+          Py_DECREF(ret);
         }
 
       }
@@ -340,7 +332,7 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
 
   return WorkServer_process_messages((WorkServer*)self->app, 0);
 
-/*
+/*  TODO Get rid of gather. Have the user poll messages
   // If we have enough items or enough time has passed and aren't waiting on a callback 
   if ( self->gather_seconds ) {
     unsigned long cur_time = time(NULL);
