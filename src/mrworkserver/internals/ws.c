@@ -28,7 +28,7 @@ int WorkServer_init(WorkServer* self, PyObject *args, PyObject *kwargs) {
   if(!(self->create_task = PyObject_GetAttrString(loop, "create_task"))) return -1;
 
   self->last_time = 0;
-  if(!PyArg_ParseTuple(args, "Oi", &self->async_func, &self->gather_seconds)) return -1;
+  if(!PyArg_ParseTuple(args, "Oi", &self->async_func, &self->gather)) return -1;
   self->task  = NULL;
   if(!(self->task_done  = PyObject_GetAttrString((PyObject*)self, "task_done"))) return -1;
   if(!(self->fetch_func = PyObject_GetAttrString((PyObject*)self, "prefetch" ))) return -1;
@@ -36,10 +36,6 @@ int WorkServer_init(WorkServer* self, PyObject *args, PyObject *kwargs) {
   self->collect_stats = false;
   if(!(self->async_times = PyObject_GetAttrString((PyObject*)self, "async_times"  ))) return -1;
   if ( self->async_times != Py_None ) { self->collect_stats = true; }
-
-
-  //printf("init packer\n");
-  //initmrpacker();
 
   return 0;
 }
@@ -55,35 +51,13 @@ PyObject* WorkServer_set(WorkServer* self, PyObject *k, PyObject *v) {
   return PyObject_CallFunctionObjArgs(self->set_func, k, v, NULL);
 }
 
-PyObject* WorkServer_process_messages(WorkServer* self, int force) {
+PyObject* WorkServer_process_messages(WorkServer* self) {
 
-  //printf( "process %d\n",PyList_GET_SIZE(self->list));
+  // Don't do anything if we're still processing messages or have none
+  if ( self->task ) Py_RETURN_NONE;
+  if ( PyList_GET_SIZE(self->list) == 0 ) Py_RETURN_NONE;
 
-  if ( !force ) {
-
-    // Don't call the async func until the previous call completes
-    if ( self->task != NULL ) Py_RETURN_NONE;
-
-    // If we have enough items or enough time has passed 
-    if ( self->gather_seconds ) {
-      unsigned long cur_time = time(NULL);
-      
-      if ( (cur_time-self->last_time)>self->gather_seconds ) {
-        self->last_time = cur_time;
-      } else {
-        Py_RETURN_NONE;
-      }
-
-    }
-
-    // TODO If you don't set gather seconds then we process immediately each msg as it comes in Benchmark and document
-     //else {
-      //if ( PyList_GET_SIZE(self->list) < 100 ) {
-        //Py_RETURN_NONE;
-      //}
-    //}
-  }
-
+  //printf( "process %ld\n",PyList_GET_SIZE(self->list));
 
   if ( self->collect_stats ) {
     static struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -91,7 +65,7 @@ PyObject* WorkServer_process_messages(WorkServer* self, int force) {
   }
   self->list2 = self->list; self->list = PyList_New(0);
 
-  //printf( "Calling async with %d items\n",PyList_GET_SIZE(self->list2));
+  //printf( "Calling async with %ld items\n",PyList_GET_SIZE(self->list2));
 
   PyObject* tmp = NULL;
   PyObject* add_done_callback = NULL;
@@ -114,30 +88,6 @@ error:
   Py_XDECREF(add_done_callback);
   return NULL;
 
-/*
-  TODO Allow a sync callback as well?
-    PyObject* tmp = PyObject_CallFunctionObjArgs(self->async_func, list, NULL);
-    if ( !tmp ) {
-      //TODO add test
-      DBG printf("Callback failed with an exception\n");
-      PyObject *type, *value, *traceback;
-      PyErr_Fetch(&type, &value, &traceback);
-      PyErr_NormalizeException(&type, &value, &traceback);
-      //if (value) {
-      printf("Unhandled exception :\n");
-      PyObject_Print( type, stdout, 0 ); printf("\n");
-      if ( value ) { PyObject_Print( value, stdout, 0 ); printf("\n"); }
-      PyErr_Clear();
-      //PyObject_Print( traceback, stdout, 0 ); printf("\n");
-    
-      Py_XDECREF(traceback);
-      Py_XDECREF(type);
-      Py_XDECREF(value);
-    }
-
-    Py_XDECREF(list);
-    list = PyList_New(0);
-*/
 }
 
 

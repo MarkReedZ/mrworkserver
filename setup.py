@@ -28,7 +28,7 @@ with codecs.open('README.md', encoding='utf-8') as f:
 
 setup(
   name="mrworkserver", 
-  version="0.10",
+  version="0.11",
   license='MIT',
   description='A python work server written in C',
   long_description = README,

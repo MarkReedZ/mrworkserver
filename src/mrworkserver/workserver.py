@@ -11,12 +11,12 @@ from mrworkserver import stats_timer
 
 
 class WorkServer(CWorkServer):
-  def __init__(self, *, protocol_factory=None, seconds_to_gather=0, collect_stats=False, callback=None, fetch_callback=None):
+  def __init__(self, *, protocol_factory=None, gather=False, collect_stats=False, callback=None, fetch_callback=None):
     self._loop = asyncio.new_event_loop()
     asyncio.set_event_loop(self.loop)
     self._connections = set()
     self._protocol_factory = protocol_factory or Protocol
-    self._seconds_to_gather = seconds_to_gather
+    self._gather = gather
     self.cb = callback
     self.fetchcb = fetch_callback
     self.setcb   = self.nop
@@ -48,7 +48,7 @@ class WorkServer(CWorkServer):
     self.on_start = None
     self.on_stop  = None
     #self.workq = asyncio.Queue(loop=self.loop)
-    super(WorkServer,self).__init__(callback, seconds_to_gather)
+    super(WorkServer,self).__init__(callback, gather)
 
 
   @property

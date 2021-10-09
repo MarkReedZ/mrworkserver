@@ -1,5 +1,6 @@
 
 
+
 #include "protocol.h"
 #include "module.h"
 #include "dec.h"
@@ -14,7 +15,6 @@
 
 #define CMD_PUSH   0x1
 #define CMD_PUSHJ  0x2
-#define CMD_FLUSH  0xA
 #define CMD_GET    0xB
 #define CMD_SET    0xC
 
@@ -112,7 +112,7 @@ void* Protocol_close(Protocol* self)
 
 PyObject* Protocol_eof_received(Protocol* self) {
   DBG printf("eof received\n");
-  WorkServer_process_messages((WorkServer*)self->app, 1);
+  //WorkServer_process_messages((WorkServer*)self->app);
   Py_RETURN_NONE; // Closes the connection and conn lost will be called next
 }
 PyObject* Protocol_connection_lost(Protocol* self, PyObject* args)
@@ -179,12 +179,7 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
     //if ( data_left > 32 ) print_buffer( p, 32 );
     //else print_buffer( p, data_left );
 
-    if ( cmd == CMD_FLUSH ) {
-      WorkServer_process_messages((WorkServer*)self->app, 1);
-      p += 2;
-      data_left -= 2;
-    }
-    else if ( cmd == CMD_SET ) {
+    if ( cmd == CMD_SET ) {
       int len   = p[2]<<8 | p[3];
 
       if ( data_left < len ) {
@@ -330,22 +325,10 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
     }
   }
 
-  return WorkServer_process_messages((WorkServer*)self->app, 0);
+  // If we're not gathering process immediately
+  if ( ! ((WorkServer*)self->app)->gather )
+    return WorkServer_process_messages((WorkServer*)self->app);
 
-/*  TODO Get rid of gather. Have the user poll messages
-  // If we have enough items or enough time has passed and aren't waiting on a callback 
-  if ( self->gather_seconds ) {
-    unsigned long cur_time = time(NULL);
-    if ( ((cur_time-self->last_time)>self->gather_seconds) && self->task == NULL ) {
-      self->last_time = cur_time;
-      return protocol_process_messages(self);
-    }
-  } else {
-    if ( PyList_GET_SIZE(self->app->list) > 2 && self->task == NULL ) {
-      return protocol_process_messages(self);
-    }
-  }
-*/
   Py_RETURN_NONE;
 }
 

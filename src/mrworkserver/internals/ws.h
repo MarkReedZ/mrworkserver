@@ -15,7 +15,7 @@ typedef struct {
   PyObject* task;
 
   PyObject *list, *list2;
-  int gather_seconds;
+  int gather;
   unsigned long last_time;
 
   bool collect_stats;
@@ -31,7 +31,7 @@ void      WorkServer_dealloc(WorkServer* self);
 
 PyObject *WorkServer_cinit(WorkServer* self);
 
-PyObject* WorkServer_process_messages(WorkServer* self, int force);
+PyObject* WorkServer_process_messages(WorkServer* self);
 PyObject* WorkServer_fetch           (WorkServer* self, PyObject *j);
 PyObject* WorkServer_set             (WorkServer* self, PyObject *k, PyObject *v);
 PyObject* WorkServer_task_done       (WorkServer* self, PyObject* task);
