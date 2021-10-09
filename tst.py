@@ -2,47 +2,40 @@ import difflib
 import asyncio, ssl, sys, random
 import mrworkserver, mrpacker
 
-import time
-
 
 num = 0
+users = {}
 
 async def on_start(ws):
   print("on_start")
+  ws.gather = asyncio.ensure_future( gather(ws) )
 
 async def on_stop(ws):
   print("on_stop, num =",num)
 
-async def reply_cb(ws, msgs): #conn, reply_id):
-  for m in msgs:
-    conn.reply( m[0], m[1], "ok" )
-
 async def callback(ws, msgs):
-  start = time.time()
-  global num
-  l = []
   for m in msgs:
     num += 1
-  print ("Processing",len(msgs)," num ",num, " took: ",(time.time() - start))
+  print ("Processing",num)
 
-users = {}
 def setcb(ws, k, v):
-  global users
   users[k] = mrpacker.pack(v)
 
 def fetchcb(ws, o):
-  #if o in users:
-    #return users[o]
-  #else:
-    #return b''
   return mrpacker.pack( {"name":"mark"} )
 
-collect_stats = False
-ws = mrworkserver.WorkServer(seconds_to_gather=1,callback=callback,collect_stats=collect_stats,fetch_callback=fetchcb)
+async def gather(ws):
+  while True:
+    await asyncio.sleep(5)
+    ws.process_messages()
+
+# In gather mode you must periodically call ws.process_messages to gather the collected messages
+#   If set to False your callback will be called immediately as messages are received
+
+ws = mrworkserver.WorkServer(gather=True,callback=callback,fetch_callback=fetchcb)
 ws.setcb = setcb
 ws.on_start = on_start
 ws.on_stop = on_stop
-import time
 
 port = 7100
 print (sys.argv)
@@ -53,4 +46,3 @@ if len(sys.argv) == 2:
 #sc.load_cert_chain(certfile='cert/server.crt', keyfile='cert/server.key')
 ws.run(host="127.0.0.1",port=port) #ssl=sc)
 
-print("DONE")
