@@ -156,7 +156,6 @@ PyObject *decode( char *s, char *end) {
     PyErr_Format(PyExc_ValueError, "Parser error");
     return NULL;
   }
-  //PyObject_Print(o, stdout, 0); printf("\n");
 
 end:
   if ( depth == -1 ) return o;
