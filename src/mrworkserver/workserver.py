@@ -1,5 +1,5 @@
 
-import socket, os, asyncio, time, struct
+import socket, os, asyncio, time, struct, signal
 from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO
 
@@ -24,6 +24,8 @@ class WorkServer(CWorkServer):
     self.collect_stats = False
     self.async_times_1m = []
     self.stats_task = None
+    self.sighup = None
+    self.sigusr1 = None
     #self.webserver_task = None
     if collect_stats:
       self.collect_stats = True
@@ -92,6 +94,7 @@ class WorkServer(CWorkServer):
 
   def run(self, host='0.0.0.0', port=7100, *, cores=None, ssl=None):
 
+    print("Workserver starting up on port ",port)
     if not asyncio.iscoroutinefunction(self.cb):
       print("WorkServer.cb must be an async function")
       return;
@@ -100,6 +103,11 @@ class WorkServer(CWorkServer):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((host, port))
     os.set_inheritable(sock.fileno(), True)
+
+    if self.sighup:
+      signal.signal(signal.SIGHUP, self.sighup)
+    if self.sigusr1:
+      signal.signal(signal.SIGHUP, self.sigusr1)
 
     loop = self.loop
     #asyncio.set_event_loop(loop)
