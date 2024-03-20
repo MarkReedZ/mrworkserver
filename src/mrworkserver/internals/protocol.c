@@ -1,6 +1,5 @@
 
 
-
 #include "protocol.h"
 #include "module.h"
 #include "dec.h"
@@ -144,7 +143,7 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
     printf("WARNING py bytes as string failed\n");
     return NULL; //TODO set error
   }
-  //if ( psz > 32 ) print_buffer( p, 32 );
+  DBG if (psz < 512) print_buffer( p, psz );
 
   int data_left = psz;
 
@@ -292,7 +291,9 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
         //print_buffer( p, len );
 
         if ( cmd == CMD_PUSH ) {
+          DBG printf(" push before unpack\n");
           o = unpackc( p, len ); 
+          DBG printf(" push after unpack\n");
           p += len;
         } else {
 #ifdef __AVX2__
@@ -305,6 +306,7 @@ PyObject* Protocol_data_received(Protocol* self, PyObject* py_data)
 
         // TODO what to do if bad json? Add error callback? Return error to client?
         if ( o != NULL ) {
+          DBG { PyObject_Print(o, stdout, 0); printf("\n"); }
           PyList_Append( ((WorkServer*)self->app)->list, o );
           Py_DECREF(o);
         } else {

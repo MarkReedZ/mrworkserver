@@ -33,6 +33,7 @@ PyObject *decode( char *s, char *end) {
 
 
   while( s < end ) {
+    DBG printf(" Processing %02x\n",((unsigned char*)s)[0]);
   if ( *s == 0x60 ) { s += 1; Py_INCREF(Py_None); o = Py_None; }
   else if ( (*(s) & 0xE0) == 0x80 ) {  // String
     int l = *(s) & 0x1F; 
@@ -45,8 +46,11 @@ PyObject *decode( char *s, char *end) {
     uint32_t *p = (uint32_t*)s;
     uint32_t l = *p;
     s+=4;
+    DBG printf("  String len %d\n", l);
     o = PyUnicode_FromStringAndSize( s, l );
+    DBG { printf("  string: "); PyObject_Print(o, stdout, 0); printf("\n"); }
     s += l;
+    DBG if (s < end) printf(" Next is %02x\n",((unsigned char*)s)[0]);
   }
   else if ( *(s) == 0x61 ) { s += 1; Py_INCREF(Py_True);  o = Py_True; }
   else if ( *(s) == 0x62 ) { s += 1; Py_INCREF(Py_False); o = Py_False; }
@@ -158,8 +162,10 @@ PyObject *decode( char *s, char *end) {
   }
 
 end:
+  DBG printf(" depth %d\n",depth);
   if ( depth == -1 ) return o;
   if ( types[depth] == 1 ) {
+    DBG printf(" appending to list curlen %d\n",curlen[depth]);
     PyList_SetItem( parents[depth],curlen[depth],o );
     curlen[depth] += 1;
     if ( curlen[depth] == maxlen[depth] ) {
@@ -169,13 +175,16 @@ end:
     }
   } else {
     if ( keys[depth] == NULL ) {
+      DBG printf(" appending key\n");
       keys[depth] = o;
     } else {
+      DBG printf(" appending value curlen %d\n",curlen[depth]);
       PyDict_SetItem( parents[depth], keys[depth], o );
       Py_DECREF(keys[depth]); Py_DECREF(o);
       keys[depth] = NULL;
       curlen[depth] += 1;
       if ( curlen[depth] == maxlen[depth] ) {
+        DBG printf(" maxlen at depth %d\n",depth);
         o = parents[depth];
         depth -= 1;
         goto end;
